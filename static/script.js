@@ -13,6 +13,7 @@ const saveSettings = document.getElementById('save-settings');
 
 let activeContexts = [];
 const statusDot = document.getElementById('status-dot');
+const serverStatus = document.getElementById('server-status');
 const engineLogs = document.getElementById('engine-logs');
 
 let messageHistory = [];
@@ -540,20 +541,27 @@ async function checkStatus() {
             engineLogs.scrollTop = engineLogs.scrollHeight;
         }
 
-        if (res.ok && data.is_ready) {
-            serverStatus.innerText = "Online - Rogatekno Labs";
-            statusDot.classList.remove('bg-red-500');
+        if (res.ok && (data.is_ready || data.status === "Ready")) {
+            serverStatus.innerText = "System Ready";
+            statusDot.classList.remove('bg-red-500', 'bg-amber-500');
             statusDot.classList.add('bg-green-500');
             statusDot.classList.remove('animate-pulse');
             engineLogs.classList.add('hidden');
-            return true;
         } else {
-            serverStatus.innerText = data.status || "Loading Model...";
-            engineLogs.classList.remove('hidden');
-            throw new Error(data.status);
+            // Server is UP but engine is STILL LOADING
+            serverStatus.innerText = data.status || "Initializing Engine...";
+            statusDot.classList.remove('bg-red-500', 'bg-green-500');
+            statusDot.classList.add('bg-amber-500'); // Yellow/Amber for loading
+            statusDot.classList.add('animate-pulse');
+            if (data.status && data.status.includes("Loading")) {
+                engineLogs.classList.remove('hidden');
+            }
         }
+        return true;
     } catch (e) {
-        statusDot.classList.remove('bg-green-500');
+        // Fetch failed entirely (Server is DOWN)
+        serverStatus.innerText = "Server Offline";
+        statusDot.classList.remove('bg-green-500', 'bg-amber-500');
         statusDot.classList.add('bg-red-500');
         statusDot.classList.add('animate-pulse');
         return false;
@@ -561,4 +569,5 @@ async function checkStatus() {
 }
 
 setInterval(checkStatus, 3000);
+checkStatus();
 checkStatus();

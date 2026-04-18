@@ -340,10 +340,7 @@ async def models_proxy():
     is_ready = await check_engine_health()
     
     if is_ready:
-        if state.is_warmed_up:
-            state.status = "Ready"
-        else:
-            state.status = "Engine Primed — Pre-warming..."
+        state.status = "Ready"
     else:
         if is_port_open():
             state.status = "Engine Busy/Loading..."
