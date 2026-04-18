@@ -38,6 +38,7 @@ renderer.code = function(token) {
     }
 
     const language = (lang && lang.trim()) ? lang.trim().toLowerCase() : null;
+    const isPreviewable = ['html', 'htm', 'svg'].includes(language);
     const displayLabel = language ? language.toUpperCase() : 'CODE';
 
     let highlighted;
@@ -55,19 +56,36 @@ renderer.code = function(token) {
             .replace(/>/g, '&gt;');
     }
 
+    const tabsHtml = isPreviewable ? `
+        <div class="flex items-center gap-1 ml-4 bg-white/5 p-1 rounded-lg">
+            <button class="preview-tab-btn active" onclick="switchTab(this, 'code')">Code</button>
+            <button class="preview-tab-btn" onclick="switchTab(this, 'preview')">Preview</button>
+        </div>
+    ` : '';
+
     return `
-        <div class="code-container fade-in">
+        <div class="code-container">
             <div class="code-header">
-                <span class="flex items-center gap-2">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
-                    ${displayLabel}
-                </span>
+                <div class="flex items-center">
+                    <span class="flex items-center gap-2">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
+                        ${displayLabel}
+                    </span>
+                    ${tabsHtml}
+                </div>
                 <button class="copy-btn" onclick="copyCode(this)">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
                     <span>Copy</span>
                 </button>
             </div>
-            <pre><code class="hljs language-${language || 'plaintext'}">${highlighted}</code></pre>
+            <div class="code-content-wrapper">
+                <pre class="code-view"><code class="hljs language-${language || 'plaintext'}">${highlighted}</code></pre>
+                ${isPreviewable ? `
+                <div class="preview-container">
+                    <iframe class="preview-iframe" sandbox="allow-scripts"></iframe>
+                </div>
+                ` : ''}
+            </div>
         </div>
     `;
 };
@@ -93,6 +111,33 @@ window.copyCode = async (btn) => {
         }, 2000);
     } catch (err) {
         console.error('Failed to copy:', err);
+    }
+};
+
+window.switchTab = (btn, tab) => {
+    const container = btn.closest('.code-container');
+    const codeView = container.querySelector('.code-view');
+    const previewContainer = container.querySelector('.preview-container');
+    const iframe = container.querySelector('.preview-iframe');
+    const btns = btn.parentElement.querySelectorAll('.preview-tab-btn');
+    
+    // Toggle buttons
+    btns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (tab === 'preview') {
+        // Fix: Use textContent because innerText is "" when hidden
+        const rawCode = codeView.textContent;
+        codeView.style.display = 'none';
+        previewContainer.style.display = 'block';
+        
+        // Only update if changed to prevent blanking
+        if (iframe.srcdoc !== rawCode) {
+            iframe.srcdoc = rawCode;
+        }
+    } else {
+        codeView.style.display = 'block';
+        previewContainer.style.display = 'none';
     }
 };
 
@@ -304,6 +349,10 @@ async function sendMessage() {
         `;
 
         messageHistory.push({ role: "assistant", content: fullAIResponse });
+
+        // Final render pass to clean up state
+        contentDiv.innerHTML = marked.parse(fullAIResponse);
+        contentDiv.classList.remove('message-stream');
 
     } catch (error) {
         console.error(error);

@@ -12,6 +12,26 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         h1, .logo-text { font-family: 'Outfit', sans-serif; }
+
+        /* Custom Minimal Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
         .glass {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(16px);
@@ -156,6 +176,44 @@
             from { transform: scale(0.95); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
+
+        /* Tabs & Preview */
+        .preview-tab-btn {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s;
+            color: #64748b;
+        }
+        .preview-tab-btn.active {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+        }
+        .preview-tab-btn:hover:not(.active) {
+            color: #e2e8f0;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .preview-container {
+            background: white;
+            border-radius: 0 0 12px 12px;
+            height: 600px; /* Increased height as requested */
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+            overflow: hidden;
+        }
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Prevent flickering and hide tabs during streaming */
+        .message-stream .preview-tab-btn,
+        .message-stream .preview-container {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="gradient-bg text-gray-200 min-h-screen selection:bg-indigo-500/30">
@@ -242,7 +300,7 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
                         </button>
                     </div>
-                    <p class="text-center text-[10px] text-gray-700 mt-4 tracking-wide uppercase">Low Power • High Precision • 1-Bit Native Research • by Ridwan Mubarok</p>
+                    <p class="text-center text-[10px] text-gray-700 mt-4 tracking-wide uppercase">Low Power • High Precision • 1-Bit Native Research • by Rogatekno Labs</p>
                 </div>
             </div>
         </main>
@@ -263,7 +321,7 @@
                 <div class="space-y-3">
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest">System Instruction / Persona</label>
                     <div class="p-4 rounded-2xl bg-white/5 border border-white/5">
-                        <textarea id="system-persona" class="w-full bg-transparent border-none text-gray-200 text-sm resize-none h-32 focus:ring-0 outline-none leading-relaxed" placeholder="Define how ROBIT should act...">You are ROBIT, a high-performance local AI assistant developed by Rogatekno Labs, optimized for 1-bit inference.</textarea>
+                        <textarea id="system-persona" class="w-full bg-transparent border-none text-gray-200 text-sm resize-none h-32 focus:ring-0 outline-none leading-relaxed" placeholder="Define how ROBIT should act...">Anda adalah ROBIT, asisten AI riset dari Rogatekno Labs. Berikan jawaban yang akurat, teknis, dan langsung ke inti (to-the-point). Gunakan konteks dokumen yang diberikan secara maksimal. Hindari penjelasan bertele-tele.</textarea>
                     </div>
                 </div>
                 <div class="flex items-center justify-between p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
