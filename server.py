@@ -198,6 +198,14 @@ async def lifespan(app: FastAPI):
         yield
         return
 
+    # Automatically set execution permissions for Mac/Linux
+    if os.name != "nt":
+        try:
+            os.chmod(ENGINE_PATH, 0o755)
+            print(f"[INIT] Permissions set for {ENGINE_PATH}")
+        except Exception as e:
+            print(f"[INIT] Warning: Could not set permissions: {e}")
+
     # =====================================================================
     # LAYER 1: Fine-tuned Engine Parameters
     # LAYER 2: N-Gram Speculative Decoding (--spec-type ngram-simple)
