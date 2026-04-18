@@ -27,6 +27,14 @@ A lightweight local AI chat interface powered by **llama.cpp**, with support for
 
 ---
 
+## System Requirements
+
+- **Python:** Recommended version **3.12.6**
+- **Libraries:** Automatic installation via `pip install -r requirements.txt`
+- **Internet:** Required only for the `<search>` tool and initial setup.
+
+---
+
 ## Supported Models
 
 All models must be in GGUF format and placed in the `models/` directory.
