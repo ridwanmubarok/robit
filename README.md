@@ -1,6 +1,6 @@
 # ROBIT: Ultra-Fast 1-Bit Research & Coding Agent
 
-A lightweight, powerful local AI research suite powered by **llama.cpp**. ROBIT features a recursive agentic loop, allowing it to browse the internet, analyze local files (including PDFs), and write code with native 1-bit efficiency.
+A lightweight, powerful local AI running suite powered by **llama.cpp**. ROBIT features a recursive agentic loop, allowing it to browse the internet, analyze local files, and write code with native 1-bit efficiency.
 
 ---
 
@@ -9,7 +9,6 @@ A lightweight, powerful local AI research suite powered by **llama.cpp**. ROBIT 
 - **Agentic Thinking Loop** — ROBIT can search the web and read files autonomously to solve complex tasks.
 - **Universal Hardware Support** — Native optimization for NVIDIA (CUDA), AMD/Intel (Vulkan), and Mac (Metal).
 - **Live HTML/CSS Preview** — Instant visual rendering of web designs directly in the chat interface.
-- **Auto PDF-to-Text** — Just provide the path to a PDF; ROBIT extracts the text automatically.
 - **High-Speed 1-Bit Inference** — PrismML kernels for maximum tokens/sec on standard CPUs.
 
 ---
