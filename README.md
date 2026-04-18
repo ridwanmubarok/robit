@@ -78,6 +78,12 @@ THREADS=4             # Match your physical CPU cores
 GPU_LAYERS=99         # Offload all layers to GPU
 ```
 
+### 🍎 Mac M1/M2/M3 (Apple Silicon) Notes
+For Mac users with Apple Silicon chips, use the following configuration for maximum performance:
+- **`USE_GPU=false`**: Use CPU mode (Unless you have a `llama-server` binary optimized for Metal).
+- **`THREADS=4` or `8`**: Adjust this to the number of *performance cores* on your Mac.
+- **Apple Silicon Advantage**: The *Unified Memory* architecture on Mac M1 is highly efficient for running 1-bit models, even without a discrete GPU.
+
 ---
 
 ## Verified Performance (RX 580 + Bonsai 8B Q1_0)
