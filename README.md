@@ -60,7 +60,9 @@ All models must be in GGUF format and placed in the `models/` directory.
 ## Getting Started
 
 ### 1. Download Local AI
-Clone this repository and ensure you have the `bin/` or `bin-vulkan/` engines installed.
+Clone this repository. 
+- **Windows:** The `bin/` and `bin-vulkan/` folders already contain the necessary `.exe` files.
+- **Mac/Linux:** The provided `.exe` files will not work. You must download the appropriate `llama-server` binary for your architecture (e.g., `macos-metal-arm64.zip`) from the [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases/latest) and place it in the `bin/` folder.
 
 ### 2. Install Model
 Place your desired `.gguf` file in the `models/` directory. (e.g., `models/Bonsai-8B-Q1_0.gguf`).
@@ -68,7 +70,11 @@ Place your desired `.gguf` file in the `models/` directory. (e.g., `models/Bonsa
 ### 3. One-Click Launch
 No terminal commands required for daily use:
 - **Windows:** Double-click `ROBIT_Run_Windows.bat`
-- **Linux/Mac:** Run `ROBIT_Run_Unix.sh`
+- **Linux/Mac:** 
+  1. Open Terminal.
+  2. Navigate to the project folder.
+  3. Run `chmod +x ROBIT_Run_Unix.sh` (First time only).
+  4. Run `./ROBIT_Run_Unix.sh` to start.
 
 *These scripts automatically initialize your environment, check for Python/Dependencies, and launch the server.*
 
