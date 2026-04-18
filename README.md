@@ -1,93 +1,119 @@
-# Rogatekno Labs: 1-Bit LLM Inference Research
+# ⚡ ROBIT: Ultra-Fast 1-Bit Local LLM Runner
 
-A specialized research environment for evaluating **BitNet (1.58-bit)** architectures on consumer-grade hardware. This platform utilizes the **Bonsai-8B** model to demonstrate extreme efficiency by replacing floating-point multiplications with simple tensor additions.
-
-**Lead Researcher:** Ridwan Mubarok ([amubhya](https://github.com/amubhya))  
-**Model Source:** [prism-ml/Bonsai-8B-gguf](https://huggingface.co/prism-ml/Bonsai-8B-gguf)
+A lightweight local AI chat interface powered by **llama.cpp**, with support for CPU and GPU (Vulkan) backends. 
 
 ---
 
-## 🔬 Core Research: The 1-Bit Revolution
+## ✨ Features
 
-Traditional Large Language Models (LLMs) rely on high-precision numerical weights (16-bit or 8-bit), creating massive memory and compute bottlenecks. 
+- 🖥️ **Web UI** — Clean chat interface accessible from your browser
+- ⚡ **GPU Acceleration** — AMD, NVIDIA, and Intel GPU support via Vulkan
+- 🧠 **CPU Fallback** — Runs on any x86 machine with AVX2 support
+- 🔧 **Easy Config** — Switch GPU/CPU mode and tweak parameters via `.env`
+- 📋 **Markdown Rendering** — Code highlighting, copy buttons, and formatted output
+- 📊 **Performance Metrics** — Real-time tokens/second display per response
 
-**1-Bit Native (1.58-bit)** quantization represents weights using only three values: **{-1, 0, 1}**. 
-- **Compute:** Eliminates expensive multiplication, allowing CPUs to process 8B parameter models using simple, high-speed additions.
-- **Memory:** Reduces the model footprint to just **1.15 GB**, enabling inference on devices with limited RAM.
+---
 
-## 📊 Experimental Results (Ryzen 3 + RX 580)
+## 🖥️ Supported Hardware
 
-All benchmarks were conducted using `benchmark.py` (headless, no browser overhead):
-
-| Research Category | Tokens | Duration | Speed (t/s) |
+| Hardware | Mode | Backend | Compatibility |
 | :--- | :--- | :--- | :--- |
-| **Basic Knowledge** | 74 | 4.00s | **18.49** |
-| **Creative Writing** | 168 | 9.09s | **18.48** |
+| **NVIDIA RTX / GTX** | GPU | Vulkan | ✅ Native Support |
+| **AMD Radeon (RX / Vega)** | GPU | Vulkan | ✅ Native Support |
+| **Intel Arc / UHD** | GPU | Vulkan | ✅ Native Support |
+| **Any x86 CPU** | CPU | PrismML/AVX2 | ✅ Native Support |
 
-> [!IMPORTANT]
-> **Research Milestone:** Enabling the AMD RX 580 via Vulkan backend achieved a **9x speedup** over the CPU-only baseline — from **~2.1 t/s** to **~18.5 t/s** on the same machine.
+---
 
-### Optimization Journey
+## 📦 Supported Models
 
-| Mode | Backend | Speed (t/s) | Δ |
+All models must be in **GGUF format** and placed in the `models/` directory.
+
+### ⭐ Recommended (Default)
+
+| Model | Size | VRAM | Speed (RX 580) | Link |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~18.5 t/s** | [Download](https://huggingface.co/prism-ml/Bonsai-8B-gguf/resolve/main/Bonsai-8B-Q1_0.gguf?download=true) |
+
+### 🟢 Works Great (Fits in 8GB VRAM)
+
+| Model | Size | VRAM | Speed Est. | HuggingFace |
+| :--- | :--- | :--- | :--- | :--- |
+| Llama 3.1 8B Q4_K_M | 4.9 GB | ~5.5 GB | ~8–12 t/s | [meta-llama/Meta-Llama-3.1-8B-Instruct-GGUF](https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF) |
+| Mistral 7B Q4_K_M | 4.1 GB | ~4.7 GB | ~10–14 t/s | [mistralai/Mistral-7B-Instruct-GGUF](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF) |
+| DeepSeek-R1 Distill 7B Q4 | 4.1 GB | ~4.7 GB | ~10–14 t/s | [DeepSeek-R1-Distill-Qwen-7B-GGUF](https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF) |
+| Qwen 2.5 7B Q4_K_M | 4.4 GB | ~5.0 GB | ~9–13 t/s | [Qwen2.5-7B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF) |
+| Phi-3 Mini 3.8B Q4_K_M | 2.2 GB | ~2.8 GB | ~15–20 t/s | [Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) |
+
+### 🟡 CPU Only / Low VRAM
+
+| Model | Size | Mode | Speed Est. |
 | :--- | :--- | :--- | :--- |
-| CPU Baseline | PrismML 1-bit native | ~2.01 | — |
-| CPU + TurboQuant | KV-Q4_0 + Flash Attention | ~2.16 | +7% |
-| **GPU Vulkan** | **llama.cpp + AMD RX 580** | **~18.49** | **+819%** |
+| Bonsai 8B Q1_0 | 1.15 GB | CPU (1-bit native) | ~2 t/s |
+| Phi-3 Mini Q4_K_M | 2.2 GB | CPU | ~1–2 t/s |
 
-## 🚀 Key Optimizations
+### 🔴 Not Recommended (Too Large for 8GB VRAM)
 
-- **Vulkan GPU Offload:** All 32 transformer layers offloaded to AMD RX 580 (8GB VRAM) via Vulkan for maximum bandwidth utilization (~256 GB/s).
-- **TurboQuant (CPU Mode):** KV Cache compression (Q4_0) + Flash Attention to maximize throughput on memory-constrained CPUs.
-- **N-Gram Speculative Decoding:** CPU-mode speculation of 8 tokens per pass with zero draft model overhead.
-- **Configurable via `.env`:** One-line mode switching between CPU and GPU backends.
+Models above ~7.5 GB will spill to system RAM, causing a significant speed drop (~1–3 t/s):
+DeepSeek-R1 14B+, Llama 3 70B, Qwen 72B, etc.
 
-## 📦 Quick Start
+---
+
+## 🚀 Quick Start
 
 ### 1. Install Python Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Download Model (~1.15 GB)
-Download [Bonsai-8B-Q1_0.gguf](https://huggingface.co/prism-ml/Bonsai-8B-gguf/resolve/main/Bonsai-8B-Q1_0.gguf?download=true) and place it in the `models/` directory.
+### 2. Download a Model
+Place the `.gguf` file in the `models/` directory and update `MODEL_PATH` in `.env`.
 
 ### 3. Install Engine Binaries
 
 > [!NOTE]
-> Both `bin/` and `bin-vulkan/` are excluded from Git due to file size. You must download them manually.
+> `bin/` and `bin-vulkan/` are excluded from Git. Download them manually.
 
-**Option A — CPU Mode (PrismML 1-bit native):**
-This engine uses specialized 1-bit kernels. Get it via the official Bonsai-demo setup:
+**CPU Mode (PrismML — best for Bonsai 1-bit):**
 ```powershell
 git clone https://github.com/PrismML-Eng/Bonsai-demo.git
 cd Bonsai-demo
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
-Then copy the generated `bin/` folder into this project's root directory.
+Copy the generated `bin/` folder to this project's root.
 
-**Option B — GPU Mode (AMD / Vulkan):**
-Download the official llama.cpp Vulkan build and extract to `bin-vulkan/`:
+**GPU Mode (Vulkan — AMD / Intel / NVIDIA):**
+Download and extract to `bin-vulkan/`:
 ```
 https://github.com/ggml-org/llama.cpp/releases/download/b8838/llama-b8838-bin-win-vulkan-x64.zip
 ```
-Extract so that `llama-server.exe` is at `bin-vulkan/llama-server.exe`.
 
-### 4. Configure Mode (`.env`)
+### 4. Configure `.env`
 ```env
-# CPU Mode (PrismML 1-bit native)
-USE_GPU=false
+# Switch between GPU and CPU
+USE_GPU=true          # NVIDIA, AMD, or Intel GPU
+USE_GPU=false         # CPU only (PrismML 1-bit)
 
-# GPU Mode (AMD RX 580 / Vulkan) — 9x faster
-USE_GPU=true
+# Point to your model file
+MODEL_PATH=models/Bonsai-8B-Q1_0.gguf
 ```
 
-### 5. Run & Benchmark
+### 5. Run
 ```bash
-python server.py       # Start the research server
-python benchmark.py    # Verify performance
+python server.py
 ```
+Open your browser at **http://localhost:8000**
 
 ---
-© 2026 **Rogatekno Labs**. Research by **Ridwan Mubarok / amubhya**.
+
+## 📊 Verified Performance (RX 580 + Bonsai 8B Q1_0)
+
+| Mode | Speed |
+| :--- | :--- |
+| GPU Vulkan (AMD RX 580) | **~18.5 t/s** |
+| CPU only (Ryzen 3 3200G) | ~2.0 t/s |
+
+---
+© 2026 **Rogatekno Labs** — Built by **Ridwan Mubarok**

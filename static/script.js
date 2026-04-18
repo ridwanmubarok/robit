@@ -1,31 +1,58 @@
 const chatMessages = document.getElementById('chat-messages');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
-const serverStatus = document.getElementById('server-status');
+const newChatBtn = document.getElementById('new-chat-btn');
+const systemPersona = document.getElementById('system-persona');
+const fileInput = document.getElementById('file-input');
+const attachBtn = document.getElementById('attach-btn');
+const contextContainer = document.getElementById('context-container');
+
+let activeContexts = []; // Array of {filename: string, text: string}
 const statusDot = document.getElementById('status-dot');
 const engineLogs = document.getElementById('engine-logs'); // New log container
-const newChatBtn = document.getElementById('new-chat-btn');
 
-let messageHistory = [
-    { role: "system", content: "You are a helpful and concise AI assistant." }
-];
+let messageHistory = [];
+
+function getSystemMessage() {
+    return { 
+        role: "system", 
+        content: systemPersona.value.trim() || "You are ROBIT, a helpful local AI assistant."
+    };
+}
 
 // Configure marked with custom renderer for premium code blocks
 const renderer = new marked.Renderer();
-const originalCodeRenderer = renderer.code.bind(renderer);
 
-renderer.code = function(code, lang) {
-    const language = lang || 'plaintext';
+renderer.code = function(token) {
+    // marked.js v5+ passes a token object {text, lang, escaped}
+    // Older versions pass (code, lang) as separate args — handle both
+    let code, lang;
+    if (typeof token === 'object' && token !== null && 'text' in token) {
+        code = token.text;
+        lang = token.lang;
+    } else {
+        // Legacy fallback: first arg is the code string
+        code = token;
+        lang = arguments[1];
+    }
+
+    const language = (lang && lang.trim()) ? lang.trim().toLowerCase() : null;
+    const displayLabel = language ? language.toUpperCase() : 'CODE';
+
     let highlighted;
-    
     try {
-        if (lang && hljs.getLanguage(lang)) {
-            highlighted = hljs.highlight(code, { language: lang }).value;
+        if (language && hljs.getLanguage(language)) {
+            highlighted = hljs.highlight(code, { language }).value;
         } else {
-            highlighted = hljs.highlightAuto(code).value;
+            // Auto-detect language for unlabeled blocks
+            const result = hljs.highlightAuto(code);
+            highlighted = result.value;
         }
     } catch (e) {
-        highlighted = code;
+        highlighted = code
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 
     return `
@@ -33,19 +60,20 @@ renderer.code = function(code, lang) {
             <div class="code-header">
                 <span class="flex items-center gap-2">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
-                    ${language}
+                    ${displayLabel}
                 </span>
                 <button class="copy-btn" onclick="copyCode(this)">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
                     <span>Copy</span>
                 </button>
             </div>
-            <pre><code class="hljs language-${language}">${highlighted}</code></pre>
+            <pre><code class="hljs language-${language || 'plaintext'}">${highlighted}</code></pre>
         </div>
     `;
 };
 
 marked.setOptions({ renderer, breaks: true });
+
 
 // Function to copy code
 window.copyCode = async (btn) => {
@@ -86,6 +114,65 @@ userInput.addEventListener('keydown', (e) => {
 
 sendBtn.addEventListener('click', sendMessage);
 
+// File Attachment Logic
+attachBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    attachBtn.disabled = true;
+    attachBtn.innerHTML = `<svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>`;
+
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/extract', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                addContextChip(data.filename, data.text);
+            } else {
+                alert(`Gagal membaca ${file.name}: ${data.error}`);
+            }
+        } catch (err) {
+            console.error(err);
+            alert(`Error mengunggah ${file.name}`);
+        }
+    }
+
+    fileInput.value = '';
+    attachBtn.disabled = false;
+    attachBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>`;
+});
+
+function addContextChip(filename, text) {
+    if (activeContexts.find(c => c.filename === filename)) return;
+
+    activeContexts.push({ filename, text });
+    
+    const chip = document.createElement('div');
+    chip.className = 'context-chip fade-in';
+    chip.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span>${filename}</span>
+        <button onclick="removeContext('${filename}', this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+    `;
+    contextContainer.appendChild(chip);
+}
+
+window.removeContext = (filename, btn) => {
+    activeContexts = activeContexts.filter(c => c.filename !== filename);
+    btn.parentElement.remove();
+};
+
 newChatBtn.addEventListener('click', () => {
     chatMessages.innerHTML = `
         <div class="max-w-3xl mx-auto flex gap-4 fade-in">
@@ -100,14 +187,26 @@ newChatBtn.addEventListener('click', () => {
             </div>
         </div>
     `;
-    messageHistory = [
-        { role: "system", content: "You are a helpful and concise AI assistant." }
-    ];
+    messageHistory = [];
+    activeContexts = [];
+    contextContainer.innerHTML = '';
 });
 
 async function sendMessage() {
     const text = userInput.value.trim();
     if (!text || userInput.disabled) return;
+
+    // First user message in a session should include the system prompt
+    if (messageHistory.length === 0) {
+        messageHistory.push(getSystemMessage());
+    }
+
+    // Prepare message with context
+    let finalPrompt = text;
+    if (activeContexts.length > 0) {
+        const contexts = activeContexts.map(c => `[FILE: ${c.filename}]\n${c.text}\n[END FILE]`).join('\n\n');
+        finalPrompt = `Gunakan konteks dokumen berikut untuk menjawab pertanyaan saya:\n\n${contexts}\n\n--- Pertanyaan User ---\n${text}`;
+    }
 
     // Add user message to UI
     appendMessageUI('user', text);
@@ -119,7 +218,7 @@ async function sendMessage() {
     sendBtn.disabled = true;
 
     // Add message to history
-    messageHistory.push({ role: "user", content: text });
+    messageHistory.push({ role: "user", content: finalPrompt });
 
     const aiBubble = createAIPlaceholder();
     chatMessages.appendChild(aiBubble);

@@ -7,12 +7,14 @@ import socket
 import threading
 import asyncio
 import psutil
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, StreamingResponse
 from collections import deque
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+import pypdf
+import io
 
 # Load .env configuration
 load_dotenv()
@@ -48,13 +50,14 @@ MODEL_PATH = os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf
 LLM_HOST = "127.0.0.1"
 LLM_PORT = int(os.getenv("LLM_PORT", 8888))
 WEB_PORT = int(os.getenv("WEB_PORT", 8000))
-SYSTEM_PROMPT = "You are a highly capable research assistant at Rogatekno Labs."
+SYSTEM_PROMPT = "You are ROBIT, a high-performance local AI assistant developed by Rogatekno Labs, optimized for 1-bit inference."
 
 THREADS = int(os.getenv("THREADS", 4))
-CONTEXT_SIZE = os.getenv("CONTEXT_SIZE", "2048")
+CONTEXT_SIZE = os.getenv("CONTEXT_SIZE", "4096")
 BATCH_SIZE = os.getenv("BATCH_SIZE", "1024")
 UBATCH_SIZE = os.getenv("UBATCH_SIZE", "512")
 GPU_LAYERS = os.getenv("GPU_LAYERS", "99")
+GPU_PARALLEL = os.getenv("GPU_PARALLEL", "1")  # Single slot = max speed for research
 FLASH_ATTENTION = os.getenv("FLASH_ATTENTION", "on")
 KV_QUANT = os.getenv("KV_QUANT", "q4_0")
 NGRAM_SPEC = os.getenv("NGRAM_SPEC", "true").lower() == "true"
@@ -83,11 +86,17 @@ def is_port_open():
         return s.connect_ex((LLM_HOST, LLM_PORT)) == 0
 
 async def check_engine_health():
+    # Double check: Is the port even open? (Lightweight socket check)
+    if not is_port_open():
+        return False
+        
     async with httpx.AsyncClient() as client:
         try:
-            res = await client.get(f"http://{LLM_HOST}:{LLM_PORT}/v1/models", timeout=2.0)
+            # Use /health instead of /v1/models (lighter weight)
+            # Increase timeout: when engine is 100% busy, HTTP response might delay
+            res = await client.get(f"http://{LLM_HOST}:{LLM_PORT}/health", timeout=5.0)
             return res.status_code == 200
-        except:
+        except Exception:
             return False
 
 # --- LAYER 3: OS Process Priority ---
@@ -192,9 +201,14 @@ async def lifespan(app: FastAPI):
         cmd += [
             "-ngl",  GPU_LAYERS,
             "-fa",   FLASH_ATTENTION,
+            # Single parallel slot = eliminates 75% wasted KV cache for single-user research
+            "--parallel", GPU_PARALLEL,
+            # NOTE: KV cache quantization (-ctk/-ctv) deliberately omitted for GPU.
+            # On Vulkan (GCN arch), dequant overhead outweighs bandwidth savings.
+            # FP16 native cache allows the GPU to read without extra shader passes.
             "--mmap",
         ]
-        print(f"[OPTIM] GPU Mode: Offloading {GPU_LAYERS} layers to Vulkan (AMD RX 580)")
+        print(f"[OPTIM] GPU Mode: {GPU_LAYERS} layers → Vulkan | {GPU_PARALLEL} parallel slot(s) | FP16 KV cache")
     else:
         cmd += [
             "-ngl",  "0",
@@ -292,14 +306,58 @@ async def chat_proxy(request: Request):
 @app.get("/v1/models")
 async def models_proxy():
     is_ready = await check_engine_health()
+    
     if is_ready:
-        state.status = "Ready" if state.is_warmed_up else "Engine Ready — Pre-warming..."
+        if state.is_warmed_up:
+            state.status = "Ready"
+        else:
+            state.status = "Engine Primed — Pre-warming..."
+    else:
+        # If port is open but health check fails, it might be loading or busy
+        if is_port_open():
+            state.status = "Engine Busy/Loading..."
+        else:
+            state.status = "Connecting..."
 
     return {
         "status": state.status,
         "is_ready": is_ready,
         "logs": list(state.logs)[-5:]
     }
+
+@app.post("/api/extract")
+async def extract_text(file: UploadFile = File(...)):
+    """
+    Extract text content from uploaded files (PDF, TXT, Code).
+    """
+    content = ""
+    filename = file.filename
+    extension = filename.split(".")[-1].lower() if "." in filename else ""
+
+    try:
+        file_bytes = await file.read()
+        
+        if extension == "pdf":
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    content += text + "\n"
+        else:
+            # Assume text/code file
+            content = file_bytes.decode("utf-8", errors="replace")
+
+        # Basic cleanup: limit size to prevent context overflow (approx 10k chars)
+        if len(content) > 15000:
+            content = content[:15000] + "... [Content Truncated due to size]"
+
+        return {
+            "filename": filename,
+            "text": content,
+            "success": True
+        }
+    except Exception as e:
+        return {"error": str(e), "success": False}
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
