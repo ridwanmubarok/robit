@@ -264,13 +264,18 @@ async function sendMessage() {
 
     let finalPrompt = text;
     if (activeContexts.length > 0) {
-        const contexts = activeContexts.map(c => `<file name="${c.filename}">\n${c.text}\n</file>`).join('\n');
-        finalPrompt = `Document Context:\n${contexts}\n\nTask: Berdasarkan data dalam file di atas, jawablah: ${text}`;
+        // High-instruction format for 1-bit models
+        const contexts = activeContexts.map(c => `DOKUMEN [${c.filename}]:\n"""\n${c.text}\n"""`).join('\n\n');
+        finalPrompt = `Gunakan DATA DOKUMEN di bawah ini untuk menjawab pertanyaan saya secara akurat.\n\n${contexts}\n\n--- PERTANYAAN USER ---\n${text}`;
     }
 
-    appendMessageUI('user', text);
+    appendMessageUI('user', text, [...activeContexts]);
     userInput.value = '';
     userInput.style.height = 'auto';
+    
+    // Clear context after sending to avoid duplicate context in next turn
+    activeContexts = [];
+    contextContainer.innerHTML = '';
     
     userInput.disabled = true;
     sendBtn.disabled = true;
@@ -365,17 +370,29 @@ async function sendMessage() {
     }
 }
 
-function appendMessageUI(role, text) {
+function appendMessageUI(role, text, files = []) {
     const div = document.createElement('div');
     div.className = "max-w-3xl mx-auto flex gap-4 fade-in items-start";
     
     if (role === 'user') {
+        const fileHtml = files.length > 0 ? `
+            <div class="attached-files">
+                ${files.map(f => `
+                    <div class="attached-file-chip">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        ${f.filename}
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+
         div.innerHTML = `
             <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center flex-shrink-0 text-indigo-300">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             </div>
             <div class="space-y-3 pt-2 max-w-[calc(100%-3rem)]">
                 <div class="text-indigo-400 text-xs font-semibold uppercase tracking-widest px-1">You</div>
+                ${fileHtml}
                 <div class="prose prose-invert prose-p:leading-relaxed text-gray-100">
                     ${text}
                 </div>

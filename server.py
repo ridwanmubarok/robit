@@ -50,7 +50,7 @@ MODEL_PATH = os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf
 LLM_HOST = "127.0.0.1"
 LLM_PORT = int(os.getenv("LLM_PORT", 8888))
 WEB_PORT = int(os.getenv("WEB_PORT", 8000))
-SYSTEM_PROMPT = "Anda adalah ROBIT, asisten AI riset dari Rogatekno Labs. Berikan jawaban yang akurat, teknis, dan langsung ke inti (to-the-point). Gunakan konteks dokumen yang diberikan secara maksimal. Hindari penjelasan bertele-tele."
+SYSTEM_PROMPT = "Anda adalah ROBIT, asisten AI riset dari Rogatekno Labs. Berikan jawaban yang akurat, teknis, dan langsung ke inti (to-the-point). Gunakan konteks dokumen yang diberikan secara maksimal jika users melampirkan. Hindari penjelasan bertele-tele."
 
 THREADS = int(os.getenv("THREADS", 4))
 CONTEXT_SIZE = os.getenv("CONTEXT_SIZE", "4096")
