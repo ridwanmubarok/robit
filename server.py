@@ -210,7 +210,6 @@ async def lifespan(app: FastAPI):
     # LAYER 1: Fine-tuned Engine Parameters
     # LAYER 2: N-Gram Speculative Decoding (--spec-type ngram-simple)
     # =====================================================================
-    threads = 4
 
     # Base command (shared between CPU and GPU modes)
     cmd = [
