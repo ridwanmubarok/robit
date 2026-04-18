@@ -23,6 +23,5 @@ echo "[1/2] Checking and installing dependencies..."
 python3 -m pip install -r requirements.txt --quiet
 
 # Start server
-echo "[2/2] Launching ROBIT Server..."
-echo "Please wait while the model is being loaded..."
-python3 server.py
+echo "[2/2] Launching ROBIT..."
+python3 robit.py serve

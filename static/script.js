@@ -340,34 +340,131 @@ async function sendMessage() {
             }
         }
         
+        messageHistory.push({ role: "assistant", content: fullAIResponse });
+
+        // Agent Thought Loop Logic
+        const toolsFound = await handleAgentTools(fullAIResponse);
+        if (toolsFound) {
+            return await sendMessage(); 
+        }
+
         const endTime = performance.now();
         const duration = ((endTime - (firstTokenTime || startTime)) / 1000).toFixed(2);
         const tps = (tokenCount / (duration > 0 ? duration : 1)).toFixed(2);
 
-        // Display results in the performance badge
         perfDiv.innerHTML = `
             <div class="perf-badge fade-in">
                 <span>Time: <span class="perf-value">${duration}s</span></span>
-                <span>Tokens: <span class="perf-value">${tokenCount}</span></span>
-                <span>Speed: <span class="perf-value">${tps} t/s</span></span>
+                <span>Speed: <span class="perf-value text-indigo-400 font-bold">${tps} t/s</span></span>
             </div>
         `;
-
-        messageHistory.push({ role: "assistant", content: fullAIResponse });
-
-        // Final render pass to clean up state
-        contentDiv.innerHTML = marked.parse(fullAIResponse);
+        
         contentDiv.classList.remove('message-stream');
 
     } catch (error) {
         console.error(error);
         contentDiv.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
     } finally {
-        isGenerating = false; // Resume polling
+        isGenerating = false; 
         userInput.disabled = false;
         sendBtn.disabled = false;
         userInput.focus();
     }
+}
+
+async function handleAgentTools(text) {
+    let toolsFound = false;
+
+    // LS Tool
+    const lsMatches = [...text.matchAll(/<ls\s+path=["'](.*?)["']\s*\/>/g)];
+    for (const m of lsMatches) {
+        const path = m[1];
+        appendToolStatusUI(`🔍 AGENT: Listing ${path}...`);
+        try {
+            const res = await fetch('/api/fs/ls', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({path}) 
+            }).then(r => r.json());
+            const result = res.success ? `Items in ${path}: ${res.items.join(', ')}` : `Error: ${res.error}`;
+            messageHistory.push({ role: "user", content: `TOOL RESULT: ${result}` });
+            toolsFound = true;
+        } catch (e) { console.error(e); }
+    }
+
+    // READ Tool
+    const readMatches = [...text.matchAll(/<read\s+path=["'](.*?)["']\s*\/>/g)];
+    for (const m of readMatches) {
+        const path = m[1];
+        appendToolStatusUI(`📖 AGENT: Reading ${path}...`);
+        try {
+            const res = await fetch('/api/fs/read', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({path}) 
+            }).then(r => r.json());
+            const result = res.success ? `Content of ${path}:\n${res.content}` : `Error: ${res.error}`;
+            messageHistory.push({ role: "user", content: `TOOL RESULT: ${result}` });
+            toolsFound = true;
+        } catch (e) { console.error(e); }
+    }
+
+    // WRITE Tool
+    const writeMatches = [...text.matchAll(/<write\s+path=["'](.*?)["']>(.*?)<\/write>/gs)];
+    for (const m of writeMatches) {
+        const path = m[1];
+        const content = m[2];
+        appendToolStatusUI(`📝 AGENT: Writing to ${path}...`);
+        try {
+            const res = await fetch('/api/fs/write', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({path, content}) 
+            }).then(r => r.json());
+            const result = res.success ? `Success writing to ${path}` : `Error: ${res.error}`;
+            messageHistory.push({ role: "user", content: `TOOL RESULT: ${result}` });
+            toolsFound = true;
+        } catch (e) { console.error(e); }
+    }
+
+    // SEARCH Tool
+    const searchMatches = [...text.matchAll(/<search\s+query=["'](.*?)["']\s*\/>/g)];
+    for (const m of searchMatches) {
+        const query = m[1];
+        appendToolStatusUI(`🌍 AGENT: Searching the web for "${query}"...`, 'blue');
+        try {
+            const res = await fetch('/api/fs/search', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({query}) 
+            }).then(r => r.json());
+            const result = res.success ? `Search Results for '${query}':\n${res.content}` : `Error: ${res.error}`;
+            messageHistory.push({ role: "user", content: `TOOL RESULT: ${result}` });
+            toolsFound = true;
+        } catch (e) { console.error(e); }
+    }
+
+    return toolsFound;
+}
+
+function appendToolStatusUI(statusText, color = 'yellow') {
+    const colorClass = color === 'blue' ? 'text-blue-400' : 'text-yellow-500';
+    const bgClass = color === 'blue' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-yellow-500/10 border-yellow-500/20';
+    
+    const div = document.createElement('div');
+    div.className = "max-w-3xl mx-auto flex gap-4 fade-in items-center py-2";
+    div.innerHTML = `
+        <div class="w-8 h-8 rounded-lg ${bgClass} border flex items-center justify-center flex-shrink-0 ${colorClass}">
+            <svg class="animate-pulse" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                ${color === 'blue' 
+                    ? '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20"></path>'
+                    : '<path d="M21 12a9 9 0 1 1-6.219-8.56"></path>'}
+            </svg>
+        </div>
+        <div class="text-xs font-medium ${colorClass}/80 italic tracking-wide">${statusText}</div>
+    `;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function appendMessageUI(role, text, files = []) {

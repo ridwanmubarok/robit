@@ -7,6 +7,8 @@ import socket
 import threading
 import asyncio
 import psutil
+import urllib.parse
+from duckduckgo_search import DDGS
 from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -50,7 +52,23 @@ MODEL_PATH = os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf
 LLM_HOST = "127.0.0.1"
 LLM_PORT = int(os.getenv("LLM_PORT", 8888))
 WEB_PORT = int(os.getenv("WEB_PORT", 8000))
-SYSTEM_PROMPT = "Anda adalah ROBIT, asisten AI riset dari Rogatekno Labs. Berikan jawaban yang akurat, teknis, dan langsung ke inti (to-the-point). Gunakan konteks dokumen yang diberikan secara maksimal jika users melampirkan. Hindari penjelasan bertele-tele."
+SYSTEM_PROMPT = """You are ROBIT, a Research and Development (R&D) AI assistant from Rogatekno Labs with real-time internet search capabilities.
+
+IDENTITY & CAPABILITIES:
+- You perform deep internet research to retrieve the most up-to-date information.
+- You provide accurate technical analysis for coding, science, and business.
+- You optimize coding solutions provided by the user.
+
+TOOL CALLING (Use the following XML tags - MUST BE EXACT):
+1.  <search query="topic"/> : Perform an internet search (via DuckDuckGo). Use this to obtain current information, news, or technical documentation that you do not already know.
+
+OPERATIONAL RULES:
+- Provide answers that are TECHNICAL, ACCURATE, and DIRECTLY to the point.
+- If you need new information, use the <search> tool first. Search results will be provided in the next message as a 'TOOL RESULT'.
+- Upon receiving a 'TOOL RESULT', analyze the findings and fulfill the user's request using that data.
+- For web development (HTML/CSS), help users optimize their code to look perfect in the UI's PREVIEW feature.
+
+IMPORTANT: Do not provide lengthy explanations while searching. Focus on presenting the research findings."""
 
 THREADS = int(os.getenv("THREADS", 4))
 CONTEXT_SIZE = os.getenv("CONTEXT_SIZE", "4096")
@@ -354,6 +372,80 @@ async def extract_text(file: UploadFile = File(...)):
         }
     except Exception as e:
         print(f"[FILES] Error extracting {filename}: {e}")
+        return {"error": str(e), "success": False}
+
+@app.post("/api/fs/ls")
+async def fs_ls(request: Request):
+    body = await request.json()
+    path = body.get("path", ".")
+    try:
+        # Restriction removed per user request for full system access
+        full_path = os.path.abspath(path)
+        
+        items = os.listdir(full_path)
+        return {"items": items, "success": True}
+    except Exception as e:
+        return {"error": str(e), "success": False}
+
+@app.post("/api/fs/read")
+async def fs_read(request: Request):
+    body = await request.json()
+    path = body.get("path")
+    try:
+        # Normalize and unquote path (e.g. %20 -> space, file:/// -> cleaned)
+        clean_path = urllib.parse.unquote(path)
+        if clean_path.startswith("file:///"):
+            clean_path = clean_path[8:] if os.name != 'nt' else clean_path[8:].lstrip('/')
+            
+        full_path = os.path.abspath(clean_path)
+        
+        # Handle PDF Read
+        if full_path.lower().endswith(".pdf"):
+            content = ""
+            with open(full_path, "rb") as f:
+                reader = pypdf.PdfReader(f)
+                for page in reader.pages:
+                    text = page.extract_text()
+                    if text: content += text + "\n"
+            return {"content": content, "success": True}
+            
+        # Handle Text/Code Read
+        with open(full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return {"content": content, "success": True}
+    except Exception as e:
+        return {"error": str(e), "success": False}
+
+@app.post("/api/fs/search")
+async def fs_search(request: Request):
+    body = await request.json()
+    query = body.get("query")
+    try:
+        results = []
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=5):
+                # Use Markdown formatting for clickable links
+                md_link = f"### [{r.get('title')}]({r.get('href')})\n{r.get('body')}"
+                results.append(md_link)
+        
+        content = "\n\n---\n\n".join(results)
+        return {"content": content, "success": True}
+    except Exception as e:
+        return {"error": str(e), "success": False}
+
+@app.post("/api/fs/write")
+async def fs_write(request: Request):
+    body = await request.json()
+    path = body.get("path")
+    content = body.get("content", "")
+    try:
+        full_path = os.path.abspath(path)
+        
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[AGENT] Wrote file: {path}")
+        return {"success": True}
+    except Exception as e:
         return {"error": str(e), "success": False}
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

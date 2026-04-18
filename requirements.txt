@@ -8,3 +8,6 @@ psutil
 httpx
 python-dotenv
 pypdf
+rich
+click
+duckduckgo-search
