@@ -84,9 +84,23 @@ NGRAM_DRAFT = os.getenv("NGRAM_DRAFT", "8")
 # Detection for OS extension
 EXT = ".exe" if os.name == "nt" else ""
 
+# GPU Backend Configuration
+# Options: cuda | vulkan | metal (default: vulkan)
+GPU_BACKEND = os.getenv("GPU_BACKEND", "vulkan").lower()
+
 if GPU_MODE:
-    ENGINE_PATH = os.getenv("GPU_ENGINE_PATH", os.path.join("bin-vulkan", f"llama-server{EXT}"))
-    print(f"[CONFIG] Mode: GPU Vulkan (AMD RX 580)")
+    if GPU_BACKEND == "cuda":
+        default_dir = "bin-cuda"
+        backend_name = "NVIDIA CUDA"
+    elif GPU_BACKEND == "metal":
+        default_dir = "bin-metal"
+        backend_name = "Apple Metal"
+    else:
+        default_dir = "bin-vulkan"
+        backend_name = "Universal Vulkan"
+        
+    ENGINE_PATH = os.getenv("GPU_ENGINE_PATH", os.path.join(default_dir, f"llama-server{EXT}"))
+    print(f"[CONFIG] Mode: GPU {backend_name}")
 else:
     ENGINE_PATH = os.getenv("CPU_ENGINE_PATH", os.path.join("bin", f"llama-server{EXT}"))
     print(f"[CONFIG] Mode: CPU 1-Bit Native (PrismML)")

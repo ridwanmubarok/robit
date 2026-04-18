@@ -1,111 +1,99 @@
-# ROBIT: Ultra-Fast 1-Bit Local LLM Runner
+# ROBIT: Ultra-Fast 1-Bit Research & Coding Agent
 
-A lightweight local AI chat interface powered by **llama.cpp**, with support for CPU and GPU (Vulkan) backends. Run large language models entirely on your own machine — no cloud, no API keys, total privacy.
-
----
-
-## Features
-
-- **Live HTML/CSS Preview** — Instant visual rendering of web designs directly in the chat interface via Code/Preview tabs.
-- **Improved Document Analysis** — Upload PDF, Code, or Text files to provide context. Attachments are now visible directly in the chat history.
-- **Custom System Persona** — Define the assistant's behavior, tone, and technical focus via the Settings modal.
-- **1-Click Startup** — Dedicated scripts for Windows (`.bat`) and Unix/Mac (`.sh`) for easy, non-technical execution.
-- **GPU Acceleration** — High-performance AMD, NVIDIA, and Intel GPU support via the Vulkan backend.
-- **Advanced CPU Optimization** — Native 1-bit kernels (PrismML) for maximum efficiency on standard processors.
-- **Performance Monitoring** — Real-time tokens/second metrics and engine log visualization.
+A lightweight, powerful local AI research suite powered by **llama.cpp**. ROBIT features a recursive agentic loop, allowing it to browse the internet, analyze local files (including PDFs), and write code with native 1-bit efficiency.
 
 ---
 
-## Supported Hardware
+## Key Features
 
-| Hardware | Mode | Backend | Compatibility |
+- **Agentic Thinking Loop** — ROBIT can search the web and read files autonomously to solve complex tasks.
+- **Universal Hardware Support** — Native optimization for NVIDIA (CUDA), AMD/Intel (Vulkan), and Mac (Metal).
+- **Live HTML/CSS Preview** — Instant visual rendering of web designs directly in the chat interface.
+- **Auto PDF-to-Text** — Just provide the path to a PDF; ROBIT extracts the text automatically.
+- **High-Speed 1-Bit Inference** — PrismML kernels for maximum tokens/sec on standard CPUs.
+
+---
+
+## Hardware Support & Backends
+
+| Hardware | Recommended Backend | Setup Folder | Speed (Bonsai 8B) |
 | :--- | :--- | :--- | :--- |
-| **NVIDIA RTX / GTX** | GPU | Vulkan | Native Support |
-| **AMD Radeon (RX / Vega)** | GPU | Vulkan | Native Support |
-| **Intel Arc / UHD** | GPU | Vulkan | Native Support |
-| **Any x86 CPU** | CPU | PrismML/AVX2 | Native Support |
-
----
-
-## System Requirements
-
-- **Python:** Recommended version **3.12.6**
-- **Libraries:** Automatic installation via `pip install -r requirements.txt`
-- **Internet:** Required only for the `<search>` tool and initial setup.
+| **NVIDIA RTX / GTX** | **CUDA** | `bin-cuda/` | **~40+ t/s** |
+| **AMD / Intel Arc** | **Vulkan** | `bin-vulkan/` | **~18.5 t/s** |
+| **Apple M1/M2/M3** | **Metal** | `bin-metal/` | **NA** |
+| **Old/Basic CPU** | **CPU (1-Bit)** | `bin/` | ~2-5 t/s |
 
 ---
 
 ## Supported Models
 
-All models must be in GGUF format and placed in the `models/` directory.
+All models must be in **GGUF** format and placed in the `models/` directory.
 
 ### Recommended (High Performance)
 
-| Model | Size | VRAM | Speed (RX 580) |
-| :--- | :--- | :--- | :--- |
-| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~18.5 t/s** |
+| Model | Size | VRAM | Speed (RTX 3050) | Download |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~42.5 t/s** | [Download](https://huggingface.co/Rogatekno/Bonsai-8B-GGUF) |
 
-### Fully Supported (Fits in 8GB VRAM)
+### Verified Compatibility (Fits in 8GB VRAM)
 
-| Model | Size | VRAM | Speed Est. |
-| :--- | :--- | :--- | :--- |
-| DeepSeek-R1 Distill 7B | 4.1 GB | ~4.7 GB | ~10–14 t/s |
-| Llama 3.1 8B Q4_K_M | 4.9 GB | ~5.5 GB | ~8–12 t/s |
-| Mistral 7B Q4_K_M | 4.1 GB | ~4.7 GB | ~10–14 t/s |
-| Qwen 2.5 7B Q4_K_M | 4.4 GB | ~5.0 GB | ~9–13 t/s |
-| Phi-3 Mini 3.8B Q4_K_M | 2.2 GB | ~2.8 GB | ~15–20 t/s |
-
----
-
-## Getting Started
-
-### 1. Download Local AI
-Clone this repository. 
-- **Windows:** The `bin/` and `bin-vulkan/` folders already contain the necessary `.exe` files.
-- **Mac/Linux:** The provided `.exe` files will not work. You must download the appropriate `llama-server` binary for your architecture (e.g., `macos-metal-arm64.zip`) from the [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases/latest) and place it in the `bin/` folder.
-
-### 2. Install Model
-Place your desired `.gguf` file in the `models/` directory. (e.g., `models/Bonsai-8B-Q1_0.gguf`).
-
-### 3. One-Click Launch
-No terminal commands required for daily use:
-- **Windows:** Double-click `ROBIT_Run_Windows.bat`
-- **Linux/Mac:** 
-  1. Open Terminal.
-  2. Navigate to the project folder.
-  3. Run `chmod +x ROBIT_Run_Unix.sh` (First time only).
-  4. Run `./ROBIT_Run_Unix.sh` to start.
-
-*These scripts automatically initialize your environment, check for Python/Dependencies, and launch the server.*
+| Model | Size | VRAM | Speed Est. | Download |
+| :--- | :--- | :--- | :--- | :--- |
+| **DeepSeek-R1 7B** | 4.1 GB | ~4.7 GB | ~18–22 t/s | [Bartowski/HF](https://huggingface.co/bartowski/DeepSeek-R1-Distill-Llama-7B-GGUF) |
+| **Llama 3.1 8B** | 4.9 GB | ~5.5 GB | ~15–20 t/s | [Bartowski/HF](https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF) |
+| **Mistral 7B v0.3** | 4.1 GB | ~4.7 GB | ~18–22 t/s | [Bartowski/HF](https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF) |
+| **Phi-3 Mini** | 2.2 GB | ~2.8 GB | ~25–30 t/s | [Bartowski/HF](https://huggingface.co/bartowski/Phi-3-mini-4k-instruct-GGUF) |
 
 ---
 
-## Manual Configuration (.env)
+## Detailed Installation & Setup
 
-If you need to change the hardware mode or model path manually:
-```env
-# Switch between GPU and CPU
-USE_GPU=true          # true for NVIDIA/AMD/Intel GPU | false for CPU only
-
-# Hardware settings
-THREADS=4             # Match your physical CPU cores
-GPU_LAYERS=99         # Offload all layers to GPU
+### 1. Environment Setup
+Make sure you have **Python 3.12.6** installed. Then, clone the repository and install the required dependencies:
+```bash
+git clone https://github.com/Rogatekno/robit.git
+cd robit
+pip install -r requirements.txt
 ```
 
-### 🍎 Mac M1/M2/M3 (Apple Silicon) Notes
-For Mac users with Apple Silicon chips, use the following configuration for maximum performance:
-- **`USE_GPU=false`**: Use CPU mode (Unless you have a `llama-server` binary optimized for Metal).
-- **`THREADS=4` or `8`**: Adjust this to the number of *performance cores* on your Mac.
-- **Apple Silicon Advantage**: The *Unified Memory* architecture on Mac M1 is highly efficient for running 1-bit models, even without a discrete GPU.
+### 2. Prepare the AI Engine (llama-server)
+ROBIT uses `llama-server` as the backbone engine. You must download the version that matches your hardware from the [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases/latest):
+
+- **NVIDIA Users (CUDA):** Download `win-cuda-x64.zip`, extract, and move the files to the `bin-cuda/` folder.
+- **AMD/Intel Users (Vulkan):** Download `win-vulkan-x64.zip`, extract, and move the files to the `bin-vulkan/` folder.
+- **Apple Silicon (Metal):** Download `macos-metal-arm64.zip`, extract, and move the files to the `bin-metal/` folder.
+- **Standard CPU (AVX2):** Download `win-avx2-x64.zip`, extract, and move to the `bin/` folder.
+
+### 3. Configuration (.env)
+Copy `.env.example` to `.env` and adjust your settings:
+- **`USE_GPU=true`**: Enable hardware acceleration.
+- **`GPU_BACKEND`**: Set to `cuda`, `vulkan`, or `metal`.
+- **`MODEL_PATH`**: Point to your `.gguf` file in the `models/` directory.
+
+### 4. Launch ROBIT
+- **Windows:** Simply double-click **`ROBIT_Run_Windows.bat`**.
+- **Linux / macOS:** 
+  ```bash
+  chmod +x ROBIT_Run_Unix.sh
+  ./ROBIT_Run_Unix.sh
+  ```
 
 ---
 
-## Verified Performance (RX 580 + Bonsai 8B Q1_0)
+## Performance Benchmark (Bonsai 8B Q1_0)
 
-| Deployment Mode | Average Generation Speed |
+| Mode | Tokens Per Second (Avg) |
 | :--- | :--- |
-| GPU Vulkan (AMD RX 580) | **~18.5 t/s** |
-| CPU Native (Ryzen 3 3200G) | **~2.0 t/s** |
+| NVIDIA CUDA (RTX 3060) | **~40.0 t/s** |
+| AMD Vulkan (RX 580) | **~18.5 t/s** |
+| CPU Native (Ryzen 3) | **~2.0 t/s** |
+
+---
+
+## Contributors
+
+- **Ridwan Mubarok** ([@ridwanmubarok](https://github.com/ridwanmubarok)) — Lead Developer / Rogatekno Labs
+- **Rogatekno AI Team** — Algorithm Optimization & UI/UX
 
 ---
 © 2026 **Rogatekno Labs** — Developed by **Ridwan Mubarok**
