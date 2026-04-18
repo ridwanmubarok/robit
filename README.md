@@ -6,11 +6,12 @@ A lightweight local AI chat interface powered by **llama.cpp**, with support for
 
 ## Features
 
-- **Document Context Reader** — Upload PDF, Code, or Text files to provide immediate context for the assistant.
-- **Custom System Persona** — Define the assistant's behavior and tone via the dedicated Settings modal.
+- **Live HTML/CSS Preview** — Instant visual rendering of web designs directly in the chat interface via Code/Preview tabs.
+- **Improved Document Analysis** — Upload PDF, Code, or Text files to provide context. Attachments are now visible directly in the chat history.
+- **Custom System Persona** — Define the assistant's behavior, tone, and technical focus via the Settings modal.
+- **1-Click Startup** — Dedicated scripts for Windows (`.bat`) and Unix/Mac (`.sh`) for easy, non-technical execution.
 - **GPU Acceleration** — High-performance AMD, NVIDIA, and Intel GPU support via the Vulkan backend.
 - **Advanced CPU Optimization** — Native 1-bit kernels (PrismML) for maximum efficiency on standard processors.
-- **Clean Web Interface** — Modern, responsive chat UI featuring frosted-glass aesthetics and syntax highlighting.
 - **Performance Monitoring** — Real-time tokens/second metrics and engine log visualization.
 
 ---
@@ -48,50 +49,34 @@ All models must be in GGUF format and placed in the `models/` directory.
 
 ---
 
-## Quick Start
+## Getting Started
 
-### 1. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+### 1. Download Local AI
+Clone this repository and ensure you have the `bin/` or `bin-vulkan/` engines installed.
 
-### 2. Download Model
-Place the desired `.gguf` file in the `models/` directory and update the `MODEL_PATH` in your `.env` file.
+### 2. Install Model
+Place your desired `.gguf` file in the `models/` directory. (e.g., `models/Bonsai-8B-Q1_0.gguf`).
 
-### 3. Install Engine Binaries
+### 3. One-Click Launch
+No terminal commands required for daily use:
+- **Windows:** Double-click `ROBIT_Run_Windows.bat`
+- **Linux/Mac:** Run `ROBIT_Run_Unix.sh`
 
-> [!NOTE]
-> The `bin/` and `bin-vulkan/` directories are excluded from the repository. You must install the binaries manually.
+*These scripts automatically initialize your environment, check for Python/Dependencies, and launch the server.*
 
-**CPU Mode (PrismML):**
-Best for 1-bit models like Bonsai.
-```powershell
-git clone https://github.com/PrismML-Eng/Bonsai-demo.git
-cd Bonsai-demo
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\setup.ps1
-```
-Copy the generated `bin/` folder to the project root.
+---
 
-**GPU Mode (Vulkan):**
-Download the Vulkan binaries and extract them to `bin-vulkan/`:
-[llama-b8838-bin-win-vulkan-x64.zip](https://github.com/ggml-org/llama.cpp/releases/download/b8838/llama-b8838-bin-win-vulkan-x64.zip)
+## Manual Configuration (.env)
 
-### 4. Configure .env
+If you need to change the hardware mode or model path manually:
 ```env
 # Switch between GPU and CPU
-USE_GPU=true          # Set to true for NVIDIA/AMD/Intel GPU
-USE_GPU=false         # Set to false for CPU only (PrismML)
+USE_GPU=true          # true for NVIDIA/AMD/Intel GPU | false for CPU only
 
-# Model configuration
-MODEL_PATH=models/Bonsai-8B-Q1_0.gguf
+# Hardware settings
+THREADS=4             # Match your physical CPU cores
+GPU_LAYERS=99         # Offload all layers to GPU
 ```
-
-### 5. Start the Server
-```bash
-python server.py
-```
-Access the interface at: **http://localhost:8000**
 
 ---
 
