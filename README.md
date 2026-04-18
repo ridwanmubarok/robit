@@ -33,7 +33,7 @@ All models must be in **GGUF** format and placed in the `models/` directory.
 
 | Model | Size | VRAM | Speed (RTX 3050) | Download |
 | :--- | :--- | :--- | :--- | :--- |
-| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~42.5 t/s** | [Download](https://huggingface.co/Rogatekno/Bonsai-8B-GGUF) |
+| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~42.5 t/s** | [Download]([https://huggingface.co/Rogatekno/Bonsai-8B-GGUF](https://huggingface.co/prism-ml/Bonsai-8B-gguf/tree/main)) |
 
 ### Verified Compatibility (Fits in 8GB VRAM)
 
