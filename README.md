@@ -20,7 +20,7 @@ A lightweight, powerful local AI research suite powered by **llama.cpp**. ROBIT 
 | :--- | :--- | :--- | :--- |
 | **NVIDIA RTX / GTX** | **CUDA** | `bin-cuda/` | **~40+ t/s** |
 | **AMD / Intel Arc** | **Vulkan** | `bin-vulkan/` | **~18.5 t/s** |
-| **Apple M1/M2/M3** | **Metal** | `bin-metal/` | **NA** |
+| **Apple M1/M2/M3** | **Metal** | `bin-metal/` | **~14.5 t/s** |
 | **Old/Basic CPU** | **CPU (1-Bit)** | `bin/` | ~2-5 t/s |
 
 ---
@@ -87,6 +87,7 @@ Copy `.env.example` to `.env` and adjust your settings:
 | NVIDIA CUDA (RTX 3060) | **~40.0 t/s** |
 | AMD Vulkan (RX 580) | **~18.5 t/s** |
 | CPU Native (Ryzen 3) | **~2.0 t/s** |
+| Apple Silicon (M1 Pro) | **~14.5 t/s** |
 
 ---
 

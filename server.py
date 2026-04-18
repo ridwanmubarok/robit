@@ -266,12 +266,18 @@ async def lifespan(app: FastAPI):
             "-fa",   FLASH_ATTENTION,
             # Single parallel slot = eliminates 75% wasted KV cache for single-user research
             "--parallel", GPU_PARALLEL,
-            # NOTE: KV cache quantization (-ctk/-ctv) deliberately omitted for GPU.
-            # On Vulkan (GCN arch), dequant overhead outweighs bandwidth savings.
-            # FP16 native cache allows the GPU to read without extra shader passes.
             "--mmap",
+            "--mlock",
         ]
-        print(f"[OPTIM] GPU Mode: {GPU_LAYERS} layers → {backend_name} | {GPU_PARALLEL} parallel slot(s) | FP16 KV cache")
+        # Optimization: Enable KV cache quantization specifically for Apple Metal.
+        # This significantly reduces memory bandwidth pressure on M1/M2/M3 chips.
+        if GPU_BACKEND == "metal":
+            cmd += [
+                "-ctk",  KV_QUANT,
+                "-ctv",  KV_QUANT,
+            ]
+        
+        print(f"[OPTIM] GPU Mode: {GPU_LAYERS} layers → {backend_name} | {GPU_PARALLEL} parallel slot(s) | {KV_QUANT if GPU_BACKEND == 'metal' else 'FP16'} KV cache")
     else:
         cmd += [
             "-ngl",  "0",
