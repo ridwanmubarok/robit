@@ -81,12 +81,15 @@ KV_QUANT = os.getenv("KV_QUANT", "q4_0")
 NGRAM_SPEC = os.getenv("NGRAM_SPEC", "true").lower() == "true"
 NGRAM_DRAFT = os.getenv("NGRAM_DRAFT", "8")
 
+# Detection for OS extension
+EXT = ".exe" if os.name == "nt" else ""
+
 if GPU_MODE:
-    ENGINE_PATH = os.getenv("GPU_ENGINE_PATH", os.path.join("bin-vulkan", "llama-server.exe"))
-    print("[CONFIG] Mode: GPU Vulkan (AMD RX 580)")
+    ENGINE_PATH = os.getenv("GPU_ENGINE_PATH", os.path.join("bin-vulkan", f"llama-server{EXT}"))
+    print(f"[CONFIG] Mode: GPU Vulkan (AMD RX 580)")
 else:
-    ENGINE_PATH = os.getenv("CPU_ENGINE_PATH", os.path.join("bin", "llama-server.exe"))
-    print("[CONFIG] Mode: CPU 1-Bit Native (PrismML)")
+    ENGINE_PATH = os.getenv("CPU_ENGINE_PATH", os.path.join("bin", f"llama-server{EXT}"))
+    print(f"[CONFIG] Mode: CPU 1-Bit Native (PrismML)")
 
 class AppState:
     def __init__(self):
