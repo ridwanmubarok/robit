@@ -11,23 +11,13 @@ API_URL = "http://localhost:8000/v1/chat/completions"
 TEST_CASES = [
     {
         "id": "BASELINE",
-        "category": "Basic Info",
+        "category": "Basic Knowledge",
         "prompt": "Explain the importance of 1-bit quantization in 3 short sentences."
     },
     {
         "id": "CREATIVE",
         "category": "Creative Writing",
-        "prompt": "Write a short 2-paragraph story about a robot living in a world without electricity."
-    },
-    {
-        "id": "CODING",
-        "category": "Code Generation",
-        "prompt": "Write a professional HTML and CSS code for a premium login card component."
-    },
-    {
-        "id": "LOGIC",
-        "category": "Logic & Reasoning",
-        "prompt": "If I have 3 apples and you give me 5 more, then I eat 2, how many do I have left? Explain the steps."
+        "prompt": "Write a short 1-paragraph story about a robot living in a world without electricity."
     }
 ]
 

@@ -12,6 +12,9 @@ models/*.bin
 bin/*.exe
 bin/*.dll
 
+bin-vulkan/*.exe
+bin-vulkan/*.dll
+
 .DS_Store
 Thumbs.db
 desktop.ini
