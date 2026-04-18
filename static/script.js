@@ -6,12 +6,17 @@ const systemPersona = document.getElementById('system-persona');
 const fileInput = document.getElementById('file-input');
 const attachBtn = document.getElementById('attach-btn');
 const contextContainer = document.getElementById('context-container');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettings = document.getElementById('close-settings');
+const saveSettings = document.getElementById('save-settings');
 
-let activeContexts = []; // Array of {filename: string, text: string}
+let activeContexts = [];
 const statusDot = document.getElementById('status-dot');
-const engineLogs = document.getElementById('engine-logs'); // New log container
+const engineLogs = document.getElementById('engine-logs');
 
 let messageHistory = [];
+let isGenerating = false; // New flag to optimize performance
 
 function getSystemMessage() {
     return { 
@@ -20,18 +25,14 @@ function getSystemMessage() {
     };
 }
 
-// Configure marked with custom renderer for premium code blocks
 const renderer = new marked.Renderer();
 
 renderer.code = function(token) {
-    // marked.js v5+ passes a token object {text, lang, escaped}
-    // Older versions pass (code, lang) as separate args — handle both
     let code, lang;
     if (typeof token === 'object' && token !== null && 'text' in token) {
         code = token.text;
         lang = token.lang;
     } else {
-        // Legacy fallback: first arg is the code string
         code = token;
         lang = arguments[1];
     }
@@ -44,7 +45,6 @@ renderer.code = function(token) {
         if (language && hljs.getLanguage(language)) {
             highlighted = hljs.highlight(code, { language }).value;
         } else {
-            // Auto-detect language for unlabeled blocks
             const result = hljs.highlightAuto(code);
             highlighted = result.value;
         }
@@ -75,7 +75,6 @@ renderer.code = function(token) {
 marked.setOptions({ renderer, breaks: true });
 
 
-// Function to copy code
 window.copyCode = async (btn) => {
     const container = btn.closest('.code-container');
     const code = container.querySelector('code').innerText;
@@ -83,7 +82,6 @@ window.copyCode = async (btn) => {
     try {
         await navigator.clipboard.writeText(code);
         
-        // Visual feedback
         const span = btn.querySelector('span');
         const originalText = span.innerText;
         span.innerText = "Copied!";
@@ -98,13 +96,11 @@ window.copyCode = async (btn) => {
     }
 };
 
-// Auto-resize textarea
 userInput.addEventListener('input', () => {
     userInput.style.height = 'auto';
     userInput.style.height = userInput.scrollHeight + 'px';
 });
 
-// Handle Enter key
 userInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -114,7 +110,6 @@ userInput.addEventListener('keydown', (e) => {
 
 sendBtn.addEventListener('click', sendMessage);
 
-// File Attachment Logic
 attachBtn.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', async (e) => {
@@ -173,6 +168,28 @@ window.removeContext = (filename, btn) => {
     btn.parentElement.remove();
 };
 
+settingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'flex';
+});
+
+closeSettings.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+});
+
+saveSettings.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+    settingsBtn.classList.add('bg-emerald-500/20', 'text-emerald-400');
+    setTimeout(() => {
+        settingsBtn.classList.remove('bg-emerald-500/20', 'text-emerald-400');
+    }, 1000);
+});
+
+settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) {
+        settingsModal.style.display = 'none';
+    }
+});
+
 newChatBtn.addEventListener('click', () => {
     chatMessages.innerHTML = `
         <div class="max-w-3xl mx-auto flex gap-4 fade-in">
@@ -196,28 +213,23 @@ async function sendMessage() {
     const text = userInput.value.trim();
     if (!text || userInput.disabled) return;
 
-    // First user message in a session should include the system prompt
     if (messageHistory.length === 0) {
         messageHistory.push(getSystemMessage());
     }
 
-    // Prepare message with context
     let finalPrompt = text;
     if (activeContexts.length > 0) {
-        const contexts = activeContexts.map(c => `[FILE: ${c.filename}]\n${c.text}\n[END FILE]`).join('\n\n');
-        finalPrompt = `Gunakan konteks dokumen berikut untuk menjawab pertanyaan saya:\n\n${contexts}\n\n--- Pertanyaan User ---\n${text}`;
+        const contexts = activeContexts.map(c => `<file name="${c.filename}">\n${c.text}\n</file>`).join('\n');
+        finalPrompt = `Document Context:\n${contexts}\n\nTask: Berdasarkan data dalam file di atas, jawablah: ${text}`;
     }
 
-    // Add user message to UI
     appendMessageUI('user', text);
     userInput.value = '';
     userInput.style.height = 'auto';
     
-    // Disable input while generating
     userInput.disabled = true;
     sendBtn.disabled = true;
 
-    // Add message to history
     messageHistory.push({ role: "user", content: finalPrompt });
 
     const aiBubble = createAIPlaceholder();
@@ -227,6 +239,7 @@ async function sendMessage() {
     
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
+    isGenerating = true; // Stop polling while generating
     const startTime = performance.now();
     let firstTokenTime = null;
     let tokenCount = 0;
@@ -296,6 +309,7 @@ async function sendMessage() {
         console.error(error);
         contentDiv.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
     } finally {
+        isGenerating = false; // Resume polling
         userInput.disabled = false;
         sendBtn.disabled = false;
         userInput.focus();
@@ -319,7 +333,6 @@ function appendMessageUI(role, text) {
             </div>
         `;
     } else {
-        // This is usually for static AI messages if any
         div.innerHTML = `
             <div class="w-10 h-10 rounded-xl glass border border-white/5 flex items-center justify-center flex-shrink-0 text-indigo-400">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
@@ -353,13 +366,12 @@ function createAIPlaceholder() {
     return div;
 }
 
-// Check server status
 async function checkStatus() {
+    if (isGenerating) return;
     try {
         const res = await fetch('/v1/models');
         const data = await res.json();
         
-        // Update logs in UI
         if (data.logs && data.logs.length > 0) {
             engineLogs.innerText = data.logs.join('\n');
             engineLogs.scrollTop = engineLogs.scrollHeight;
@@ -370,7 +382,7 @@ async function checkStatus() {
             statusDot.classList.remove('bg-red-500');
             statusDot.classList.add('bg-green-500');
             statusDot.classList.remove('animate-pulse');
-            engineLogs.classList.add('hidden'); // Optional: hide logs when ready
+            engineLogs.classList.add('hidden');
             return true;
         } else {
             serverStatus.innerText = data.status || "Loading Model...";

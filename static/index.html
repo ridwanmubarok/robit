@@ -130,26 +130,32 @@
         }
         .context-chip button:hover { color: #f43f5e; }
 
-        /* Persona Box */
-        .persona-box {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 12px;
-            margin-top: 16px;
-        }
-        .persona-textarea {
-            width: 100%;
-            background: transparent;
-            border: none;
-            color: #94a3b8;
-            font-size: 11px;
-            resize: none;
-            outline: none;
-            height: 60px;
-            line-height: 1.5;
-        }
         .persona-textarea:focus { color: #e2e8f0; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: center; justify-content: center;
+            padding: 24px;
+        }
+        .modal-container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(15, 17, 26, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            animation: modalIn 0.3s ease-out;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body class="gradient-bg text-gray-200 min-h-screen selection:bg-indigo-500/30">
@@ -180,20 +186,17 @@
                         <span>Main Session</span>
                     </div>
                 </div>
-
-                <div class="persona-box">
-                    <div class="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                        System Instruction
-                    </div>
-                    <textarea id="system-persona" class="persona-textarea" placeholder="Definisikan bagaimana ROBIT harus berperan...">You are ROBIT, a high-performance local AI assistant developed by Rogatekno Labs, optimized for 1-bit inference.</textarea>
-                </div>
             </div>
 
-            <div class="px-4 py-3 rounded-xl bg-gray-900/50 border border-white/5 mt-4">
-                <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
-                    <div id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                    <span id="server-status">Connecting...</span>
+            <div class="px-4 py-3 rounded-xl bg-gray-900/50 border border-white/5 mt-auto mb-4 mx-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3 text-xs text-gray-400">
+                        <div id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                        <span id="server-status">Connecting...</span>
+                    </div>
+                    <button id="settings-btn" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 transition-all">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
                 </div>
                 <div id="engine-logs" class="text-[10px] font-mono text-gray-600 line-clamp-3 leading-relaxed">
                     Awaiting engine logs...
@@ -243,6 +246,42 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="p-6 border-b border-white/10 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-white flex items-center gap-3">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    Settings
+                </h3>
+                <button id="close-settings" class="text-gray-500 hover:text-white transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="space-y-3">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest">System Instruction / Persona</label>
+                    <div class="p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <textarea id="system-persona" class="w-full bg-transparent border-none text-gray-200 text-sm resize-none h-32 focus:ring-0 outline-none leading-relaxed" placeholder="Define how ROBIT should act...">You are ROBIT, a high-performance local AI assistant developed by Rogatekno Labs, optimized for 1-bit inference.</textarea>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+                    <div class="space-y-1">
+                        <div class="text-xs font-semibold text-indigo-300">Auto-inject Documents</div>
+                        <div class="text-[10px] text-gray-500">Provide file content as context automatically.</div>
+                    </div>
+                    <div class="w-10 h-6 rounded-full bg-indigo-600 relative opacity-50 cursor-not-allowed">
+                        <div class="absolute right-1 top-1 w-4 h-4 rounded-full bg-white"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 bg-white/5 border-t border-white/5 flex justify-end">
+                <button id="save-settings" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all">
+                    Save Changes
+                </button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

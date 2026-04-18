@@ -50,14 +50,14 @@ MODEL_PATH = os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf
 LLM_HOST = "127.0.0.1"
 LLM_PORT = int(os.getenv("LLM_PORT", 8888))
 WEB_PORT = int(os.getenv("WEB_PORT", 8000))
-SYSTEM_PROMPT = "You are ROBIT, a high-performance local AI assistant developed by Rogatekno Labs, optimized for 1-bit inference."
+SYSTEM_PROMPT = "You are a high-performance local AI assistant developed by Rogatekno Labs, optimized for 1-bit inference."
 
 THREADS = int(os.getenv("THREADS", 4))
 CONTEXT_SIZE = os.getenv("CONTEXT_SIZE", "4096")
 BATCH_SIZE = os.getenv("BATCH_SIZE", "1024")
 UBATCH_SIZE = os.getenv("UBATCH_SIZE", "512")
 GPU_LAYERS = os.getenv("GPU_LAYERS", "99")
-GPU_PARALLEL = os.getenv("GPU_PARALLEL", "1")  # Single slot = max speed for research
+GPU_PARALLEL = os.getenv("GPU_PARALLEL", "1")
 FLASH_ATTENTION = os.getenv("FLASH_ATTENTION", "on")
 KV_QUANT = os.getenv("KV_QUANT", "q4_0")
 NGRAM_SPEC = os.getenv("NGRAM_SPEC", "true").lower() == "true"
@@ -77,6 +77,7 @@ class AppState:
         self.status = "Initializing..."
         self.logs = deque(maxlen=50)
         self.is_warmed_up = False
+        self.health_client = httpx.AsyncClient(timeout=5.0)
 
 state = AppState()
 
@@ -86,18 +87,15 @@ def is_port_open():
         return s.connect_ex((LLM_HOST, LLM_PORT)) == 0
 
 async def check_engine_health():
-    # Double check: Is the port even open? (Lightweight socket check)
     if not is_port_open():
         return False
         
-    async with httpx.AsyncClient() as client:
-        try:
-            # Use /health instead of /v1/models (lighter weight)
-            # Increase timeout: when engine is 100% busy, HTTP response might delay
-            res = await client.get(f"http://{LLM_HOST}:{LLM_PORT}/health", timeout=5.0)
-            return res.status_code == 200
-        except Exception:
-            return False
+    try:
+        # Reuse persistent client for speed
+        res = await state.health_client.get(f"http://{LLM_HOST}:{LLM_PORT}/health")
+        return res.status_code == 200
+    except Exception:
+        return False
 
 # --- LAYER 3: OS Process Priority ---
 def boost_process_priority(pid):
@@ -151,7 +149,7 @@ async def prewarm_kv_cache():
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": "ok"}
         ],
-        "max_tokens": 1,  # Only generate 1 token — just to prime the cache
+        "max_tokens": 1,
         "stream": False
     }
     try:
@@ -183,7 +181,7 @@ async def lifespan(app: FastAPI):
     # LAYER 1: Fine-tuned Engine Parameters
     # LAYER 2: N-Gram Speculative Decoding (--spec-type ngram-simple)
     # =====================================================================
-    threads = 4  # Optimal for Ryzen 3 3200G (4 physical cores)
+    threads = 4
 
     # Base command (shared between CPU and GPU modes)
     cmd = [
@@ -266,7 +264,6 @@ async def chat_proxy(request: Request):
 
     body = await request.json()
 
-    # Inject system prompt if not already present
     messages = body.get("messages", [])
     if not any(m.get("role") == "system" for m in messages):
         messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
@@ -283,19 +280,12 @@ async def chat_proxy(request: Request):
             await response.aclose()
             return {"error": f"Engine error {response.status_code}: {content.decode()}"}
 
-        # LAYER 5: Buffered streaming (reduce flush syscall overhead)
         async def stream_generator():
-            buffer = ""
             try:
+                # LAYER 5: Low-latency streaming (immediate yield)
                 async for chunk in response.aiter_lines():
                     if chunk:
-                        buffer += chunk + "\n"
-                        # Flush when buffer hits threshold OR it's the [DONE] sentinel
-                        if len(buffer) >= 256 or "[DONE]" in chunk:
-                            yield buffer
-                            buffer = ""
-                if buffer:
-                    yield buffer
+                        yield chunk + "\n"
             finally:
                 await response.aclose()
 
@@ -313,7 +303,6 @@ async def models_proxy():
         else:
             state.status = "Engine Primed — Pre-warming..."
     else:
-        # If port is open but health check fails, it might be loading or busy
         if is_port_open():
             state.status = "Engine Busy/Loading..."
         else:
@@ -324,6 +313,10 @@ async def models_proxy():
         "is_ready": is_ready,
         "logs": list(state.logs)[-5:]
     }
+
+@app.get("/favicon.ico")
+async def favicon():
+    return HTMLResponse(content="", status_code=204)
 
 @app.post("/api/extract")
 async def extract_text(file: UploadFile = File(...)):
@@ -342,21 +335,25 @@ async def extract_text(file: UploadFile = File(...)):
             for page in reader.pages:
                 text = page.extract_text()
                 if text:
-                    content += text + "\n"
+                    clean_text = "\n".join([line.strip() for line in text.split("\n") if line.strip()])
+                    content += clean_text + "\n"
         else:
-            # Assume text/code file
-            content = file_bytes.decode("utf-8", errors="replace")
+            raw_text = file_bytes.decode("utf-8", errors="replace")
+            content = "\n".join([line.strip() for line in raw_text.split("\n") if line.strip()])
 
-        # Basic cleanup: limit size to prevent context overflow (approx 10k chars)
         if len(content) > 15000:
-            content = content[:15000] + "... [Content Truncated due to size]"
+            content = content[:15000] + "... [Content Truncated]"
+
+        print(f"[FILES] Extracted {len(content)} chars from {filename}")
 
         return {
             "filename": filename,
             "text": content,
-            "success": True
+            "success": True if content else False,
+            "error": "No text found in file" if not content else None
         }
     except Exception as e:
+        print(f"[FILES] Error extracting {filename}: {e}")
         return {"error": str(e), "success": False}
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
