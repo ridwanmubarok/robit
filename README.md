@@ -34,9 +34,20 @@ Benchmarks conducted on an **AMD Ryzen 3 3200G** (4 Cores @ 3.6GHz) with **Turbo
 
 ## 📦 Quick Start
 
-1. Install dependencies: `pip install -r requirements.txt`
-2. Run research server: `python server.py`
-3. Verify performance: `python benchmark.py`
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Download Model:**
+   Download the [Bonsai-8B-Q1_0.gguf](https://huggingface.co/prism-ml/Bonsai-8B-gguf/resolve/main/Bonsai-8B-Q1_0.gguf?download=true) and place it inside the `models/` directory.
+3. **Run Research Server:**
+   ```bash
+   python server.py
+   ```
+4. **Verify Performance:**
+   ```bash
+   python benchmark.py
+   ```
 
 ---
 © 2026 **Rogatekno Labs**.
