@@ -4,7 +4,6 @@ import json
 import sys
 
 # Rogatekno Labs - Professional Research Validation Suite
-# Baseline HW: AMD Ryzen 3 3200G (4 Physical Cores @ 3.6GHz)
 
 API_URL = "http://localhost:8000/v1/chat/completions"
 
@@ -89,12 +88,10 @@ def print_markdown_report(results):
             table += f"| {r['category']} | {r['tokens']} | {r['duration']} | **{r['speed']}** |\n"
     
     print(table)
-    print("\nHardware: AMD Ryzen 3 3200G (4 CPUs) | Architecture: 1-Bit Native")
     print("="*60)
 
 if __name__ == "__main__":
     print("Rogatekno Labs - Research Validation Suite v2.0")
-    print("System baseline: Ryzen 3 3200G | Optimization: TurboQuant")
     print("-" * 60)
     
     results = []

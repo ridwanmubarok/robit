@@ -9,7 +9,6 @@ A lightweight, powerful local AI Runner suite powered by **llama.cpp**.
 - **Agentic Thinking Loop** — ROBIT can search the web and read files autonomously to solve complex tasks.
 - **Universal Hardware Support** — Native optimization for NVIDIA (CUDA), AMD/Intel (Vulkan), and Mac (Metal).
 - **Live HTML/CSS Preview** — Instant visual rendering of web designs directly in the chat interface.
-- **Auto PDF-to-Text** — Just provide the path to a PDF; ROBIT extracts the text automatically.
 - **High-Speed 1-Bit Inference** — PrismML kernels for maximum tokens/sec on standard CPUs.
 
 ---
@@ -20,7 +19,7 @@ A lightweight, powerful local AI Runner suite powered by **llama.cpp**.
 | :--- | :--- | :--- | :--- |
 | **NVIDIA RTX / GTX** | **CUDA** | `bin-cuda/` | **~40+ t/s** |
 | **AMD / Intel Arc** | **Vulkan** | `bin-vulkan/` | **~18.5 t/s** |
-| **Apple M1/M2/M3** | **Metal** | `bin-metal/` | **NA** |
+| **Apple M1/M2/M3** | **Metal** | `bin-metal/` | **~14.5 t/s** |
 | **Old/Basic CPU** | **CPU (1-Bit)** | `bin/` | ~2-5 t/s |
 
 ---
@@ -33,7 +32,7 @@ All models must be in **GGUF** format and placed in the `models/` directory.
 
 | Model | Size | VRAM | Speed (RTX 3050) | Download |
 | :--- | :--- | :--- | :--- | :--- |
-| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~42.5 t/s** | [Download](https://huggingface.co/Rogatekno/Bonsai-8B-GGUF) |
+| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~42.5 t/s** | [Download]([https://huggingface.co/Rogatekno/Bonsai-8B-GGUF](https://huggingface.co/prism-ml/Bonsai-8B-gguf/tree/main)) |
 
 ### Verified Compatibility (Fits in 8GB VRAM)
 
@@ -87,6 +86,7 @@ Copy `.env.example` to `.env` and adjust your settings:
 | NVIDIA CUDA (RTX 3060) | **~40.0 t/s** |
 | AMD Vulkan (RX 580) | **~18.5 t/s** |
 | CPU Native (Ryzen 3) | **~2.0 t/s** |
+| Apple Silicon (M1 Pro) | **~14.5 t/s** |
 
 ---
 

@@ -142,22 +142,35 @@ async def check_engine_health():
 
 # --- LAYER 3: OS Process Priority ---
 def boost_process_priority(pid):
-    """Boost the engine process to HIGH priority on Windows."""
+    """Boost the engine process priority. Handles both Windows and Unix-like systems."""
     try:
         p = psutil.Process(pid)
-        p.nice(psutil.HIGH_PRIORITY_CLASS)
-        print("[OPTIM] L3: Engine process priority boosted to HIGH.")
+        if os.name == "nt":
+            # Windows: Use high priority class
+            p.nice(psutil.HIGH_PRIORITY_CLASS)
+        else:
+            # Unix/Mac: Use nice value (-10 is high priority, 0 is normal)
+            # Negative values usually require sudo, but we'll try -10 first.
+            try:
+                p.nice(-10)
+            except Exception:
+                # If -10 fails (no sudo), try 0 (normal) or just skip
+                pass
+        print("[OPTIM] L3: Engine process priority boosted.")
     except Exception as e:
-        print(f"[OPTIM] L3: Could not boost priority (run as admin for max effect): {e}")
+        print(f"[OPTIM] L3: Could not boost priority (run as admin/sudo for max effect): {e}")
 
 def set_cpu_affinity(pid):
-    """Pin the engine to physical cores (0,2,4,6 on Ryzen 3 = 4 physical cores)."""
+    """Pin the engine to physical cores if supported by the OS."""
     try:
         p = psutil.Process(pid)
-        # Ryzen 3 3200G has 4 cores, 4 threads (no SMT confusion)
-        # We pin to all 4 cores to let the OS handle scheduling cleanly
-        p.cpu_affinity(list(range(4)))
-        print(f"[OPTIM] L3: CPU affinity pinned to 4 cores.")
+        if hasattr(p, "cpu_affinity"):
+            # Ryzen 3 3200G has 4 cores, 4 threads (no SMT confusion)
+            # We pin to all 4 cores to let the OS handle scheduling cleanly
+            p.cpu_affinity(list(range(4)))
+            print(f"[OPTIM] L3: CPU affinity pinned to 4 cores.")
+        else:
+            print("[OPTIM] L3: CPU affinity not supported on this OS.")
     except Exception as e:
         print(f"[OPTIM] L3: Could not set CPU affinity: {e}")
 
@@ -225,8 +238,18 @@ async def lifespan(app: FastAPI):
         try:
             os.chmod(ENGINE_PATH, 0o755)
             print(f"[INIT] Permissions set for {ENGINE_PATH}")
+            
+            # macOS Security Policy Bypass
+            if os.uname().sysname == "Darwin":
+                # 1. Recursive remove quarantine
+                bin_dir = os.path.dirname(ENGINE_PATH)
+                subprocess.run(["xattr", "-cr", bin_dir], capture_output=True)
+                # 2. Ad-hoc sign libraries and binary
+                subprocess.run(f"codesign --force --sign - {bin_dir}/*.dylib 2>/dev/null", shell=True, capture_output=True)
+                subprocess.run(["codesign", "--force", "--sign", "-", ENGINE_PATH], capture_output=True)
+                print(f"[INIT] macOS security policy bypassed (xattr/codesign)")
         except Exception as e:
-            print(f"[INIT] Warning: Could not set permissions: {e}")
+            print(f"[INIT] Warning: Could not set permissions or sign binary: {e}")
 
     # =====================================================================
     # LAYER 1: Fine-tuned Engine Parameters
@@ -252,9 +275,6 @@ async def lifespan(app: FastAPI):
             "-fa",   FLASH_ATTENTION,
             # Single parallel slot = eliminates 75% wasted KV cache for single-user research
             "--parallel", GPU_PARALLEL,
-            # NOTE: KV cache quantization (-ctk/-ctv) deliberately omitted for GPU.
-            # On Vulkan (GCN arch), dequant overhead outweighs bandwidth savings.
-            # FP16 native cache allows the GPU to read without extra shader passes.
             "--mmap",
             "--mlock",
         ]

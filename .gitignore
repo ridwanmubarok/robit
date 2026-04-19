@@ -12,6 +12,12 @@ models/*.bin
 bin/*.exe
 bin/*.dll
 
+bin-metal/*.exe
+bin-metal/*
+
+bin-cuda/*.exe
+bin-cuda/*.dll
+
 bin-vulkan/*.exe
 bin-vulkan/*.dll
 
