@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import time
 import os
 import uvicorn
@@ -20,6 +21,13 @@ import io
 
 # Load .env configuration
 load_dotenv()
+
+# Force UTF-8 for Windows console output
+if sys.platform == "win32":
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 # ============================================================
 # ROGATEKNO LABS - MAX PERFORMANCE ENGINE
@@ -166,7 +174,7 @@ def engine_logger():
             elif "warming up the model" in clean_line:
                 state.status = "Warming Up Model..."
             elif "HTTP server listening" in clean_line:
-                state.status = "Engine Ready — Pre-warming KV Cache..."
+                state.status = "Engine Ready - Pre-warming KV Cache..."
 
 # --- LAYER 4: Pre-Warming KV Cache ---
 async def prewarm_kv_cache():
@@ -203,7 +211,7 @@ async def prewarm_kv_cache():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Rogatekno Labs — Max Performance Mode Initializing...")
+    print("Rogatekno Labs - Max Performance Mode Initializing...")
 
     if not os.path.exists(ENGINE_PATH):
         err = f"Error: Engine not found at {ENGINE_PATH}"
@@ -235,6 +243,7 @@ async def lifespan(app: FastAPI):
         "-t",     str(THREADS),
         "-b",     BATCH_SIZE,
         "-ub",    UBATCH_SIZE,
+        "--no-webui",
     ]
 
     if GPU_MODE:
@@ -247,8 +256,9 @@ async def lifespan(app: FastAPI):
             # On Vulkan (GCN arch), dequant overhead outweighs bandwidth savings.
             # FP16 native cache allows the GPU to read without extra shader passes.
             "--mmap",
+            "--mlock",
         ]
-        print(f"[OPTIM] GPU Mode: {GPU_LAYERS} layers → Vulkan | {GPU_PARALLEL} parallel slot(s) | FP16 KV cache")
+        print(f"[OPTIM] GPU Mode: {GPU_LAYERS} layers -> Vulkan | {GPU_PARALLEL} parallel slot(s) | MLOCK Active")
     else:
         cmd += [
             "-ngl",  "0",
@@ -268,6 +278,8 @@ async def lifespan(app: FastAPI):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         bufsize=1
     )
 

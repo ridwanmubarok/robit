@@ -1,6 +1,6 @@
-# ROBIT: Ultra-Fast 1-Bit Research & Coding Agent
+# ROBIT
 
-A lightweight, powerful local AI research suite powered by **llama.cpp**. ROBIT features a recursive agentic loop, allowing it to browse the internet, analyze local files (including PDFs), and write code with native 1-bit efficiency.
+A lightweight, powerful local AI Runner suite powered by **llama.cpp**.
 
 ---
 
@@ -87,6 +87,16 @@ Copy `.env.example` to `.env` and adjust your settings:
 | NVIDIA CUDA (RTX 3060) | **~40.0 t/s** |
 | AMD Vulkan (RX 580) | **~18.5 t/s** |
 | CPU Native (Ryzen 3) | **~2.0 t/s** |
+
+---
+
+## Detailed Benchmark: DeepSeek-Coder-V2-Lite (Q4_K_M)
+**Hardware: AMD Ryzen 3 3200G + RX 580 (Hybrid Mode)**
+
+| Category | Total Tokens | Duration | Speed (t/s) |
+| :--- | :--- | :--- | :--- |
+| Basic Knowledge | 121 | 9.74s | **12.42** |
+| Creative Writing | 155 | 12.17s | **12.73** |
 
 ---
 
