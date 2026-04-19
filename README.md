@@ -90,16 +90,6 @@ Copy `.env.example` to `.env` and adjust your settings:
 
 ---
 
-## Detailed Benchmark: DeepSeek-Coder-V2-Lite (Q4_K_M)
-**Hardware: AMD Ryzen 3 3200G + RX 580 (Hybrid Mode)**
-
-| Category | Total Tokens | Duration | Speed (t/s) |
-| :--- | :--- | :--- | :--- |
-| Basic Knowledge | 121 | 9.74s | **12.42** |
-| Creative Writing | 155 | 12.17s | **12.73** |
-
----
-
 ## Contributors
 
 - **Ridwan Mubarok** ([@ridwanmubarok](https://github.com/ridwanmubarok)) — Lead Developer / Rogatekno Labs
