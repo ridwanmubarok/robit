@@ -356,14 +356,51 @@ async def chat_proxy(request: Request):
 
         async def stream_generator():
             try:
-                # LAYER 5: Low-latency streaming (immediate yield)
-                async for chunk in response.aiter_lines():
+                # LAYER 5: Low-latency streaming
+                async for chunk in response.aiter_bytes():
                     if chunk:
-                        yield chunk + "\n"
+                        yield chunk
             finally:
                 await response.aclose()
 
-        return StreamingResponse(stream_generator(), media_type="text/event-stream")
+        return StreamingResponse(
+            stream_generator(), 
+            media_type=response.headers.get("content-type", "application/json")
+        )
+    except Exception as e:
+        return {"error": f"Failed to connect to Engine: {str(e)}"}
+
+@app.post("/v1/completions")
+async def completions_proxy(request: Request):
+    """Proxy for standard OpenAI completions (used for Autocomplete FIM)"""
+    health_ok = await check_engine_health()
+    if not health_ok:
+        return {"error": f"Engine not ready. Status: {state.status}"}
+
+    body = await request.json()
+    url = f"http://{LLM_HOST}:{LLM_PORT}/v1/completions"
+
+    try:
+        req = state.http_client.build_request("POST", url, json=body)
+        response = await state.http_client.send(req, stream=True)
+
+        if response.status_code != 200:
+            content = await response.aread()
+            await response.aclose()
+            return {"error": f"Engine error {response.status_code}: {content.decode()}"}
+
+        async def stream_generator():
+            try:
+                async for chunk in response.aiter_bytes():
+                    if chunk:
+                        yield chunk
+            finally:
+                await response.aclose()
+
+        return StreamingResponse(
+            stream_generator(), 
+            media_type=response.headers.get("content-type", "application/json")
+        )
     except Exception as e:
         return {"error": f"Failed to connect to Engine: {str(e)}"}
 
@@ -382,7 +419,18 @@ async def models_proxy():
     return {
         "status": state.status,
         "is_ready": is_ready,
-        "logs": list(state.logs)[-5:]
+        "logs": list(state.logs)[-5:],
+        "object": "list",
+        "data": [
+            {
+                "id": MODEL_PATH.split("/")[-1].split("\\")[-1] if MODEL_PATH else "robit-model",
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "rogatekno",
+                "root": MODEL_PATH.split("/")[-1].split("\\")[-1] if MODEL_PATH else "robit-model",
+                "parent": None
+            }
+        ]
     }
 
 @app.get("/favicon.ico")
