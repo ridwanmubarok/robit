@@ -93,6 +93,7 @@ Copy `.env.example` to `.env` and adjust your settings:
 ## Contributors
 
 - **Ridwan Mubarok** ([@ridwanmubarok](https://github.com/ridwanmubarok)) — Lead Developer / Rogatekno Labs
+- **Ramdlan Faqih** ([@RamdlanFaqih](https://github.com/RamdlanFaqih)) — Rogatekno Labs
 - **Rogatekno AI Team** — Algorithm Optimization & UI/UX
 
 ---
