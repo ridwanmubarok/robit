@@ -38,10 +38,11 @@ All models must be in **GGUF** format and placed in the `models/` directory.
 
 | Model | Size | VRAM | Speed Est. | Download |
 | :--- | :--- | :--- | :--- | :--- |
-| **DeepSeek-R1 7B** | 4.1 GB | ~4.7 GB | ~18–22 t/s | [Bartowski/HF](https://huggingface.co/bartowski/DeepSeek-R1-Distill-Llama-7B-GGUF) |
+| **DeepSeek-R1 7B** | 4.1 GB | ~4.7 GB | ~18–22 t/s | [Bartowski/HF](https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF) |
 | **Llama 3.1 8B** | 4.9 GB | ~5.5 GB | ~15–20 t/s | [Bartowski/HF](https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF) |
-| **Mistral 7B v0.3** | 4.1 GB | ~4.7 GB | ~18–22 t/s | [Bartowski/HF](https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF) |
-| **Phi-3 Mini** | 2.2 GB | ~2.8 GB | ~25–30 t/s | [Bartowski/HF](https://huggingface.co/bartowski/Phi-3-mini-4k-instruct-GGUF) |
+| **Mistral 7B v0.3** | 4.1 GB | ~4.7 GB | ~18–22 t/s | [Bartowski/HF](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3) |
+| **Phi-3 Mini** | 2.2 GB | ~2.8 GB | ~25–30 t/s | [Microsoft/HF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) |
+| **Qwen2.5-Coder-7B-Instruct-GGUF** | 3.02 GB | ~4.0 GB | ~25–30 t/s | [Qwen/HF](https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF) |
 
 ---
 
