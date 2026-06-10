@@ -63,7 +63,7 @@ def serve():
     console.print(Panel("[bold green]Starting ROBIT Web Server...[/bold green]\nAccess at http://127.0.0.1:8000", title="ROBIT Labs"))
     try:
         # We use uvicorn directly to avoid recursion or just call the script
-        subprocess.run([sys.executable, "server.py"], check=True)
+        subprocess.run([sys.executable, "main.py"], check=True)
     except KeyboardInterrupt:
         console.print("\n[yellow]Server stopped by user.[/yellow]")
 

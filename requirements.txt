@@ -11,3 +11,4 @@ pypdf
 rich
 click
 duckduckgo-search
+rapidocr_onnxruntime

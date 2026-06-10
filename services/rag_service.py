@@ -1,0 +1,260 @@
+import os
+import json
+import numpy as np
+import pypdf
+from turbovec import IdMapIndex
+from sentence_transformers import SentenceTransformer
+
+# Paths
+INDEX_FILE = "robit_docs.tvim"
+MAP_FILE = "robit_docs_map.json"
+STATUS_FILE = "robit_docs_status.json"
+
+class RobitRAG:
+    def __init__(self):
+        print("[RAG] Initializing Embedding Model (MiniLM)...")
+        # Load the embedding model (only once)
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.dim = 384
+        
+        # Load or initialize the vector index and chunk map
+        if os.path.exists(INDEX_FILE) and os.path.exists(MAP_FILE):
+            print("[RAG] Loading existing TurboVec index...")
+            self.index = IdMapIndex.load(INDEX_FILE)
+            with open(MAP_FILE, "r") as f:
+                self.chunk_map = json.load(f)
+        else:
+            print("[RAG] Creating new TurboVec index...")
+            # TurboVec supports max bit_width=4
+            self.index = IdMapIndex(dim=self.dim, bit_width=4)
+            self.chunk_map = {}
+            
+        if os.path.exists(STATUS_FILE):
+            with open(STATUS_FILE, "r") as f:
+                self.doc_status = json.load(f)
+        else:
+            self.doc_status = {}
+
+    def _chunk_text(self, text, chunk_size=300, overlap=50):
+        words = text.split()
+        chunks = []
+        for i in range(0, len(words), chunk_size - overlap):
+            chunk = " ".join(words[i:i + chunk_size])
+            if chunk:
+                chunks.append(chunk)
+        return chunks
+
+    def ingest_file(self, filepath):
+        if not os.path.exists(filepath):
+            return f"Error: File {filepath} not found."
+            
+        print(f"[RAG] Reading {filepath}...")
+        ext = filepath.split('.')[-1].lower()
+        text = ""
+        
+        try:
+            if ext == "pdf":
+                with open(filepath, "rb") as f:
+                    reader = pypdf.PdfReader(f)
+                    for page in reader.pages:
+                        t = page.extract_text()
+                        if t: text += t + "\n"
+            else:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    text = f.read()
+        except Exception as e:
+            return f"Error reading file: {e}"
+            
+        if not text.strip():
+            return "File is empty or no text could be extracted."
+            
+        print(f"[RAG] Chunking text...")
+        chunks = self._chunk_text(text)
+        if not chunks:
+            return "No chunks generated."
+            
+        print(f"[RAG] Generating embeddings for {len(chunks)} chunks...")
+        embeddings = self.model.encode(chunks, convert_to_numpy=True)
+        
+        # Prepare IDs using time to prevent collisions
+        import time
+        start_id = int(time.time() * 1000)
+        ids = np.array(range(start_id, start_id + len(chunks)), dtype=np.uint64)
+        
+        print(f"[RAG] Adding to TurboVec index...")
+        self.index.add_with_ids(embeddings, ids)
+        
+        # Update map
+        for i, chunk in zip(ids, chunks):
+            self.chunk_map[str(i)] = f"[Source: {os.path.basename(filepath)}] {chunk}"
+        
+        # Save
+        self.index.write(INDEX_FILE)
+        with open(MAP_FILE, "w") as f:
+            json.dump(self.chunk_map, f)
+            
+        # Update doc status
+        import datetime
+        self.doc_status[os.path.basename(filepath)] = {
+            "active": True,
+            "upload_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        with open(STATUS_FILE, "w") as f:
+            json.dump(self.doc_status, f)
+            
+        return f"Successfully ingested {os.path.basename(filepath)}. Added {len(chunks)} chunks to vector database."
+
+    def ingest_workspace(self, workspace_path):
+        if not os.path.isdir(workspace_path):
+            return f"Error: Directory {workspace_path} not found."
+            
+        print(f"[RAG] Scanning workspace: {workspace_path}")
+        allowed_exts = {".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".md", ".json", ".go", ".rs", ".cpp", ".c", ".h", ".java"}
+        ignore_dirs = {".git", "node_modules", "venv", ".venv", "dist", "build", "__pycache__"}
+        
+        total_files = 0
+        total_chunks = 0
+        
+        for root, dirs, files in os.walk(workspace_path):
+            dirs[:] = [d for d in dirs if d not in ignore_dirs]
+            
+            for file in files:
+                ext = os.path.splitext(file)[1].lower()
+                if ext in allowed_exts:
+                    filepath = os.path.join(root, file)
+                    try:
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            text = f.read()
+                        
+                        if text.strip():
+                            chunks = self._chunk_text(text)
+                            if chunks:
+                                embeddings = self.model.encode(chunks, convert_to_numpy=True)
+                                import time
+                                start_id = int(time.time() * 1000)
+                                ids = np.array(range(start_id, start_id + len(chunks)), dtype=np.uint64)
+                                self.index.add_with_ids(embeddings, ids)
+                                
+                                # Use relative path as source
+                                rel_path = os.path.relpath(filepath, workspace_path)
+                                for i, chunk in zip(ids, chunks):
+                                    self.chunk_map[str(i)] = f"[Source: {rel_path}] {chunk}"
+                                total_files += 1
+                                total_chunks += len(chunks)
+                    except Exception as e:
+                        print(f"[RAG] Failed to read {filepath}: {e}")
+                        
+        if total_files > 0:
+            self.index.write(INDEX_FILE)
+            with open(MAP_FILE, "w") as f:
+                json.dump(self.chunk_map, f)
+                
+            import datetime
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # For workspace scan, update doc_status for all new files
+            docs = set()
+            for text in self.chunk_map.values():
+                if text.startswith("[Source: "):
+                    end_idx = text.find("]")
+                    if end_idx != -1:
+                        docs.add(text[9:end_idx])
+            for d in docs:
+                if d not in self.doc_status:
+                    self.doc_status[d] = {"active": True, "upload_time": now_str}
+            with open(STATUS_FILE, "w") as f:
+                json.dump(self.doc_status, f)
+                
+        return f"Workspace Indexed: {total_files} files, {total_chunks} chunks."
+
+    def search(self, query, k=3):
+        if not self.chunk_map:
+            return "Database is empty. Please ingest documents first."
+            
+        query_vec = self.model.encode([query], convert_to_numpy=True)
+        # Fetch more candidates to filter by active status
+        actual_k = min(k * 5, len(self.chunk_map))
+        
+        scores, ids = self.index.search(query_vec, k=actual_k)
+        
+        results = []
+        for i in ids[0]:
+            chunk_text = self.chunk_map.get(str(i), "")
+            if chunk_text:
+                # Determine source document
+                source = ""
+                if chunk_text.startswith("[Source: "):
+                    end_idx = chunk_text.find("]")
+                    if end_idx != -1:
+                        source = chunk_text[9:end_idx]
+                
+                # Check active status
+                is_active = True
+                if source and source in self.doc_status:
+                    is_active = self.doc_status[source].get("active", True)
+                
+                if is_active:
+                    results.append(chunk_text)
+                    if len(results) >= k:
+                        break
+                
+        return "\n\n---\n\n".join(results)
+
+    def list_documents(self):
+        docs = set()
+        for text in self.chunk_map.values():
+            if text.startswith("[Source: "):
+                end_idx = text.find("]")
+                if end_idx != -1:
+                    docs.add(text[9:end_idx])
+        
+        doc_list = []
+        for doc in sorted(list(docs)):
+            status = self.doc_status.get(doc, {"active": True, "upload_time": ""})
+            doc_list.append({
+                "filename": doc,
+                "active": status.get("active", True),
+                "upload_time": status.get("upload_time", "")
+            })
+        return doc_list
+
+    def delete_document(self, filename):
+        keys_to_delete = []
+        prefix = f"[Source: {filename}]"
+        for k, v in self.chunk_map.items():
+            if v.startswith(prefix):
+                keys_to_delete.append(k)
+        
+        if not keys_to_delete:
+            return 0
+            
+        for k in keys_to_delete:
+            del self.chunk_map[k]
+            
+        with open(MAP_FILE, "w") as f:
+            json.dump(self.chunk_map, f)
+            
+        if filename in self.doc_status:
+            del self.doc_status[filename]
+            with open(STATUS_FILE, "w") as f:
+                json.dump(self.doc_status, f)
+            
+        return len(keys_to_delete)
+
+    def toggle_document(self, filename, active_state):
+        if filename in self.doc_status:
+            self.doc_status[filename]["active"] = active_state
+        else:
+            self.doc_status[filename] = {"active": active_state, "upload_time": ""}
+            
+        with open(STATUS_FILE, "w") as f:
+            json.dump(self.doc_status, f)
+        return True
+
+# Global instance
+rag_engine = None
+
+def get_rag_engine():
+    global rag_engine
+    if rag_engine is None:
+        rag_engine = RobitRAG()
+    return rag_engine
