@@ -245,18 +245,21 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let fullAIResponse = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
-        const chunkStr = decoder.decode(value, { stream: true });
-        const lines = chunkStr.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep the last incomplete line in the buffer
         
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (dataStr === '[DONE]') break;
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data: ')) {
+            const dataStr = trimmedLine.replace('data: ', '').trim();
+            if (dataStr === '[DONE]') continue;
             try {
               const dataObj = JSON.parse(dataStr);
               
@@ -265,7 +268,7 @@ function App() {
                 completionTokens = dataObj.usage.completion_tokens;
               }
               
-              if (dataObj.choices[0]?.delta?.content) {
+              if (dataObj.choices && dataObj.choices[0]?.delta?.content) {
                 fullAIResponse += dataObj.choices[0].delta.content;
                 setStreamingMsg(fullAIResponse);
                 
