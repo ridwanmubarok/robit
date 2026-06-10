@@ -11,26 +11,30 @@ MAP_FILE = "robit_docs_map.json"
 STATUS_FILE = "robit_docs_status.json"
 
 class RobitRAG:
-    def __init__(self):
-        print("[RAG] Initializing Embedding Model (MiniLM)...")
+    def __init__(self, index_file=INDEX_FILE, map_file=MAP_FILE, status_file=STATUS_FILE):
+        self.index_file = index_file
+        self.map_file = map_file
+        self.status_file = status_file
+        
+        print(f"[RAG] Initializing Embedding Model (MiniLM) for {self.index_file}...")
         # Load the embedding model (only once)
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
         self.dim = 384
         
         # Load or initialize the vector index and chunk map
-        if os.path.exists(INDEX_FILE) and os.path.exists(MAP_FILE):
-            print("[RAG] Loading existing TurboVec index...")
-            self.index = IdMapIndex.load(INDEX_FILE)
-            with open(MAP_FILE, "r") as f:
+        if os.path.exists(self.index_file) and os.path.exists(self.map_file):
+            print(f"[RAG] Loading existing TurboVec index from {self.index_file}...")
+            self.index = IdMapIndex.load(self.index_file)
+            with open(self.map_file, "r") as f:
                 self.chunk_map = json.load(f)
         else:
-            print("[RAG] Creating new TurboVec index...")
+            print(f"[RAG] Creating new TurboVec index for {self.index_file}...")
             # TurboVec supports max bit_width=4
             self.index = IdMapIndex(dim=self.dim, bit_width=4)
             self.chunk_map = {}
             
-        if os.path.exists(STATUS_FILE):
-            with open(STATUS_FILE, "r") as f:
+        if os.path.exists(self.status_file):
+            with open(self.status_file, "r") as f:
                 self.doc_status = json.load(f)
         else:
             self.doc_status = {}
@@ -89,8 +93,8 @@ class RobitRAG:
             self.chunk_map[str(i)] = f"[Source: {os.path.basename(filepath)}] {chunk}"
         
         # Save
-        self.index.write(INDEX_FILE)
-        with open(MAP_FILE, "w") as f:
+        self.index.write(self.index_file)
+        with open(self.map_file, "w") as f:
             json.dump(self.chunk_map, f)
             
         # Update doc status
@@ -99,7 +103,7 @@ class RobitRAG:
             "active": True,
             "upload_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
-        with open(STATUS_FILE, "w") as f:
+        with open(self.status_file, "w") as f:
             json.dump(self.doc_status, f)
             
         return f"Successfully ingested {os.path.basename(filepath)}. Added {len(chunks)} chunks to vector database."
@@ -110,15 +114,27 @@ class RobitRAG:
             
         print(f"[RAG] Scanning workspace: {workspace_path}")
         allowed_exts = {".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".md", ".json", ".go", ".rs", ".cpp", ".c", ".h", ".java"}
-        ignore_dirs = {".git", "node_modules", "venv", ".venv", "dist", "build", "__pycache__"}
+        ignore_dirs = {".git", "node_modules", "venv", ".venv", "dist", "build", "__pycache__", ".astro", ".next"}
+        ignore_dirs_lower = {d.lower() for d in ignore_dirs}
+        
+        import time
+        current_id = int(time.time() * 1000)
         
         total_files = 0
         total_chunks = 0
         
         for root, dirs, files in os.walk(workspace_path):
-            dirs[:] = [d for d in dirs if d not in ignore_dirs]
+            # In-place modify dirs to skip ignored directories (case-insensitive)
+            dirs[:] = [d for d in dirs if d.lower() not in ignore_dirs_lower]
+            
+            # Additional double-insurance check: skip if any part of the root path is an ignored directory
+            root_parts = {p.lower() for p in os.path.normpath(root).split(os.sep)}
+            if root_parts.intersection(ignore_dirs_lower):
+                continue
             
             for file in files:
+                if file.endswith(".d.ts"):
+                    continue
                 ext = os.path.splitext(file)[1].lower()
                 if ext in allowed_exts:
                     filepath = os.path.join(root, file)
@@ -130,9 +146,9 @@ class RobitRAG:
                             chunks = self._chunk_text(text)
                             if chunks:
                                 embeddings = self.model.encode(chunks, convert_to_numpy=True)
-                                import time
-                                start_id = int(time.time() * 1000)
-                                ids = np.array(range(start_id, start_id + len(chunks)), dtype=np.uint64)
+                                ids = np.array(range(current_id, current_id + len(chunks)), dtype=np.uint64)
+                                current_id += len(chunks)
+                                
                                 self.index.add_with_ids(embeddings, ids)
                                 
                                 # Use relative path as source
@@ -145,8 +161,8 @@ class RobitRAG:
                         print(f"[RAG] Failed to read {filepath}: {e}")
                         
         if total_files > 0:
-            self.index.write(INDEX_FILE)
-            with open(MAP_FILE, "w") as f:
+            self.index.write(self.index_file)
+            with open(self.map_file, "w") as f:
                 json.dump(self.chunk_map, f)
                 
             import datetime
@@ -161,7 +177,7 @@ class RobitRAG:
             for d in docs:
                 if d not in self.doc_status:
                     self.doc_status[d] = {"active": True, "upload_time": now_str}
-            with open(STATUS_FILE, "w") as f:
+            with open(self.status_file, "w") as f:
                 json.dump(self.doc_status, f)
                 
         return f"Workspace Indexed: {total_files} files, {total_chunks} chunks."
@@ -230,12 +246,12 @@ class RobitRAG:
         for k in keys_to_delete:
             del self.chunk_map[k]
             
-        with open(MAP_FILE, "w") as f:
+        with open(self.map_file, "w") as f:
             json.dump(self.chunk_map, f)
             
         if filename in self.doc_status:
             del self.doc_status[filename]
-            with open(STATUS_FILE, "w") as f:
+            with open(self.status_file, "w") as f:
                 json.dump(self.doc_status, f)
             
         return len(keys_to_delete)
@@ -246,15 +262,26 @@ class RobitRAG:
         else:
             self.doc_status[filename] = {"active": active_state, "upload_time": ""}
             
-        with open(STATUS_FILE, "w") as f:
+        with open(self.status_file, "w") as f:
             json.dump(self.doc_status, f)
         return True
 
-# Global instance
+# Global instances
 rag_engine = None
+codebase_rag_engine = None
 
 def get_rag_engine():
     global rag_engine
     if rag_engine is None:
         rag_engine = RobitRAG()
     return rag_engine
+
+def get_codebase_rag_engine():
+    global codebase_rag_engine
+    if codebase_rag_engine is None:
+        codebase_rag_engine = RobitRAG(
+            index_file="robit_codebase.tvim",
+            map_file="robit_codebase_map.json",
+            status_file="robit_codebase_status.json"
+        )
+    return codebase_rag_engine

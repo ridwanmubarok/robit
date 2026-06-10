@@ -234,13 +234,29 @@ async def translate_text(text: str, source_lang: str, target_lang: str):
         parsed = json.loads(content)
         return parsed
 
-async def generate_coding_plan(feature_name: str, tech_stack: str, requirements: str, files_scope: str = ""):
+async def generate_coding_plan(feature_name: str, tech_stack: str, requirements: str, files_scope: str = "", files_context: str = "", codebase_rag_context: str = ""):
     prompt = (
         f"Generate a highly detailed, professional, and practical Coding/Implementation Plan in Markdown format for the following feature:\n\n"
         f"Feature Name: {feature_name}\n"
         f"Technology Stack: {tech_stack}\n"
         f"Scope / Files to Modify (optional): {files_scope if files_scope else 'Not specified'}\n"
         f"Detailed Requirements / Description:\n{requirements}\n\n"
+    )
+    if files_context:
+        prompt += (
+            f"Here is the code content of the relevant files currently in the codebase:\n"
+            f"{files_context}\n"
+            f"Please review the code above and tailor your implementation plan exactly to this existing architecture and styles.\n\n"
+        )
+        
+    if codebase_rag_context:
+        prompt += (
+            f"Here are semantically matched code blocks retrieved from the codebase (RAG):\n"
+            f"{codebase_rag_context}\n"
+            f"Please use these code blocks to understand the files and components structure, and base your plan on this code.\n\n"
+        )
+    
+    prompt += (
         f"Structure the markdown plan EXACTLY with the following sections:\n"
         f"# Goal Description\n"
         f"Brief description of the problem, any background context, and what the change accomplishes.\n\n"
@@ -272,7 +288,12 @@ async def generate_coding_plan(feature_name: str, tech_stack: str, requirements:
     async with httpx.AsyncClient(timeout=120.0) as client:
         res = await client.post(f"http://{LLM_HOST}:{LLM_PORT}/v1/chat/completions", json=payload)
         if res.status_code != 200:
-            raise Exception(f"Engine returned status code {res.status_code}")
+            try:
+                err_data = res.json()
+                err_msg = err_data.get("error", {}).get("message", res.text)
+            except Exception:
+                err_msg = res.text
+            raise Exception(f"Engine returned error: {err_msg} (code {res.status_code})")
         data = res.json()
         content = data["choices"][0]["message"]["content"].strip()
         return content

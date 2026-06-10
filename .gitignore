@@ -38,3 +38,8 @@ help.txt
 
 *.db
 robbit.db
+
+# RAG databases
+*.tvim
+*_map.json
+*_status.json

@@ -5,12 +5,17 @@ export default function PlanningArea() {
     const [techStack, setTechStack] = useState("");
     const [filesScope, setFilesScope] = useState("");
     const [filename, setFilename] = useState("implementation_plan.md");
+    const [targetDir, setTargetDir] = useState(".");
     const [requirements, setRequirements] = useState("");
     
     const [planContent, setPlanContent] = useState("");
     const [activeTab, setActiveTab] = useState("preview"); // 'preview' | 'edit'
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isPickingDir, setIsPickingDir] = useState(false);
+    const [isIndexingCodebase, setIsIndexingCodebase] = useState(false);
+    const [isDetectingFiles, setIsDetectingFiles] = useState(false);
+    const [isDetectingTech, setIsDetectingTech] = useState(false);
     const [status, setStatus] = useState(null); // { type: 'success'|'error', text: '' }
 
     const handleGenerate = async (e) => {
@@ -32,7 +37,8 @@ export default function PlanningArea() {
                     feature_name: featureName,
                     tech_stack: techStack,
                     requirements: requirements,
-                    files_scope: filesScope
+                    files_scope: filesScope,
+                    target_dir: targetDir
                 })
             });
 
@@ -62,6 +68,7 @@ export default function PlanningArea() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     filename: filename,
+                    target_dir: targetDir,
                     content: planContent
                 })
             });
@@ -70,7 +77,7 @@ export default function PlanningArea() {
             if (data.success) {
                 setStatus({ 
                     type: 'success', 
-                    text: `Berhasil disimpan ke workspace sebagai '${data.filename}'!` 
+                    text: `Berhasil disimpan ke: ${data.filepath}!` 
                 });
             } else {
                 setStatus({ type: 'error', text: data.error || 'Gagal menyimpan file.' });
@@ -79,6 +86,114 @@ export default function PlanningArea() {
             setStatus({ type: 'error', text: `Terjadi kesalahan saat menyimpan: ${err.message}` });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handlePickDir = async () => {
+        setIsPickingDir(true);
+        setStatus(null);
+        try {
+            const res = await fetch('/api/planning/select-dir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.success && data.directory) {
+                setTargetDir(data.directory);
+            } else if (data.error) {
+                setStatus({ type: 'error', text: data.error });
+            }
+        } catch (err) {
+            setStatus({ type: 'error', text: `Gagal membuka folder picker: ${err.message}` });
+        } finally {
+            setIsPickingDir(false);
+        }
+    };
+
+    const handleIndexCodebase = async () => {
+        setIsIndexingCodebase(true);
+        setStatus(null);
+        try {
+            const res = await fetch('/api/planning/index-codebase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_dir: targetDir })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setStatus({ 
+                    type: 'success', 
+                    text: `Codebase berhasil diindeks: ${data.message}` 
+                });
+            } else {
+                setStatus({ type: 'error', text: data.error || 'Gagal mengindeks codebase.' });
+            }
+        } catch (err) {
+            setStatus({ type: 'error', text: `Terjadi kesalahan saat mengindeks: ${err.message}` });
+        } finally {
+            setIsIndexingCodebase(false);
+        }
+    };
+
+    const handleDetectTech = async () => {
+        setIsDetectingTech(true);
+        setStatus(null);
+        try {
+            const res = await fetch('/api/planning/detect-tech', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_dir: targetDir })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setTechStack(data.tech_stack);
+                setStatus({ type: 'success', text: `Berhasil mendeteksi tech stack: ${data.tech_stack}` });
+                setTimeout(() => setStatus(null), 3000);
+            } else {
+                setStatus({ type: 'error', text: data.error || 'Gagal mendeteksi tech stack.' });
+            }
+        } catch (err) {
+            setStatus({ type: 'error', text: `Terjadi kesalahan saat mendeteksi tech stack: ${err.message}` });
+        } finally {
+            setIsDetectingTech(false);
+        }
+    };
+
+    const handleDetectFiles = async () => {
+        if (!requirements.trim()) {
+            setStatus({ type: 'error', text: 'Masukkan Deskripsi Kebutuhan terlebih dahulu untuk mendeteksi file terkait.' });
+            return;
+        }
+
+        setIsDetectingFiles(true);
+        setStatus(null);
+
+        try {
+            const res = await fetch('/api/planning/detect-files', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    feature_name: featureName,
+                    requirements: requirements
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                if (data.files && data.files.length > 0) {
+                    setFilesScope(data.files.join(", "));
+                    setStatus({ type: 'success', text: `Berhasil mendeteksi ${data.files.length} file terkait dari codebase!` });
+                    setTimeout(() => setStatus(null), 3000);
+                } else {
+                    setStatus({ type: 'error', text: 'Tidak ada file terkait yang terdeteksi. Silakan indeks codebase Anda terlebih dahulu.' });
+                }
+            } else {
+                setStatus({ type: 'error', text: data.error || 'Gagal mendeteksi file.' });
+            }
+        } catch (err) {
+            setStatus({ type: 'error', text: `Terjadi kesalahan saat deteksi file: ${err.message}` });
+        } finally {
+            setIsDetectingFiles(false);
         }
     };
 
@@ -99,8 +214,13 @@ export default function PlanningArea() {
     };
 
     const getMarkdownHtml = () => {
-        if (!planContent) return "";
-        return { __html: window.marked ? window.marked.parse(planContent) : planContent };
+        if (!planContent) return { __html: "" };
+        try {
+            return { __html: window.marked ? window.marked.parse(planContent) : planContent };
+        } catch (e) {
+            console.error("Marked parsing error:", e);
+            return { __html: planContent };
+        }
     };
 
     // Auto-highlight code blocks after render
@@ -149,24 +269,50 @@ export default function PlanningArea() {
 
                         <div>
                             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Tech Stack (Opsional)</label>
-                            <input 
-                                type="text"
-                                value={techStack}
-                                onChange={(e) => setTechStack(e.target.value)}
-                                placeholder="React, Tailwind CSS, LocalStorage"
-                                className="w-full bg-[#070b13] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-slate-600"
-                            />
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text"
+                                    value={techStack}
+                                    onChange={(e) => setTechStack(e.target.value)}
+                                    placeholder="React, Tailwind CSS, LocalStorage"
+                                    className="flex-1 bg-[#070b13] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-slate-600"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleDetectTech}
+                                    disabled={isDetectingTech}
+                                    className="px-3 py-2 bg-[#1e293b] hover:bg-[#2e3e56] border border-white/10 rounded-xl text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-all flex items-center justify-center shrink-0 min-w-[90px]"
+                                >
+                                    {isDetectingTech ? "..." : "Deteksi"}
+                                </button>
+                            </div>
+                            <p className="text-[9px] text-slate-500 mt-1 leading-normal">
+                                Jika kosong, stack akan dideteksi secara otomatis saat generate. Gunakan tombol **Deteksi** untuk mendeteksi stack sekarang dari file konfigurasi proyek.
+                            </p>
                         </div>
 
                         <div>
                             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Scope / File Terkait (Opsional)</label>
-                            <input 
-                                type="text"
-                                value={filesScope}
-                                onChange={(e) => setFilesScope(e.target.value)}
-                                placeholder="ui/src/components/ThemeToggle.jsx"
-                                className="w-full bg-[#070b13] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-slate-600"
-                            />
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text"
+                                    value={filesScope}
+                                    onChange={(e) => setFilesScope(e.target.value)}
+                                    placeholder="ui/src/components/ThemeToggle.jsx"
+                                    className="flex-1 bg-[#070b13] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-slate-600 font-mono"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleDetectFiles}
+                                    disabled={isDetectingFiles}
+                                    className="px-3 py-2 bg-[#1e293b] hover:bg-[#2e3e56] border border-white/10 rounded-xl text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-all flex items-center justify-center shrink-0 min-w-[90px]"
+                                >
+                                    {isDetectingFiles ? "..." : "Deteksi"}
+                                </button>
+                            </div>
+                            <p className="text-[9px] text-slate-500 mt-1 leading-normal">
+                                Pisahkan dengan koma. Jika kosong, file terkait akan dideteksi secara otomatis saat generate. Gunakan tombol **Deteksi** untuk mendeteksi file terkait sekarang dari indeks RAG codebase.
+                            </p>
                         </div>
 
                         <div>
@@ -178,6 +324,57 @@ export default function PlanningArea() {
                                 placeholder="implementation_plan.md"
                                 className="w-full bg-[#070b13] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-slate-600 font-mono"
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Direktori Penyimpanan (Folder Path)</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text"
+                                    value={targetDir}
+                                    onChange={(e) => setTargetDir(e.target.value)}
+                                    placeholder="/absolute/path/to/folder atau . (project root)"
+                                    className="flex-1 bg-[#070b13] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-slate-600 font-mono"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handlePickDir}
+                                    disabled={isPickingDir}
+                                    className="px-3 py-2 bg-[#1e293b] hover:bg-[#2e3e56] border border-white/10 rounded-xl text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-all flex items-center justify-center shrink-0 min-w-[90px]"
+                                >
+                                    {isPickingDir ? "..." : "Pilih Folder"}
+                                </button>
+                            </div>
+                            <p className="text-[9px] text-slate-500 mt-1 leading-normal">
+                                Bisa berupa path absolut atau relatif. Menggunakan <code className="text-cyan-400">.</code> akan menyimpan di folder root ROBIT.
+                            </p>
+                            
+                            <button
+                                type="button"
+                                onClick={handleIndexCodebase}
+                                disabled={isIndexingCodebase}
+                                className="w-full mt-3 bg-cyan-950/40 hover:bg-cyan-950/70 text-cyan-400 border border-cyan-500/20 rounded-xl py-2 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2"
+                            >
+                                {isIndexingCodebase ? (
+                                    <>
+                                        <svg className="animate-spin h-3.5 w-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Mengindeks Codebase...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                        </svg>
+                                        Indeks Codebase untuk RAG Semantik
+                                    </>
+                                )}
+                            </button>
+                            <p className="text-[9px] text-slate-600 mt-1 leading-normal italic">
+                                Indeks folder ini agar AI secara otomatis melakukan pencarian semantik (RAG) pada seluruh kodebase saat men-generate rencana.
+                            </p>
                         </div>
 
                         <div className="flex-1 flex flex-col">
