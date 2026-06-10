@@ -5,7 +5,7 @@ export default function WhichLLMArea() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetch("/api/hardware")
+        fetch("/api/setup/hardware")
             .then(res => res.json())
             .then(data => {
                 setHwInfo(data);

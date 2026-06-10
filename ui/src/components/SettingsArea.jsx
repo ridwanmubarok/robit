@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useSettings, useSaveSettings } from '../hooks/useQueries';
+import { useSettings, useSaveSettings, useModels, useChangeModel } from '../hooks/useQueries';
 
 const settingsSchema = z.object({
     system_prompt: z.string().min(1, "System prompt cannot be empty"),
@@ -27,6 +27,52 @@ export default function SettingsArea() {
     const { data: initialSettings, isLoading } = useSettings();
     const saveSettingsMutation = useSaveSettings();
     const [status, setStatus] = useState("");
+    
+    // Model Management
+    const { data: modelsData, isLoading: modelsLoading } = useModels();
+    const changeModelMutation = useChangeModel();
+    const [importStatus, setImportStatus] = useState("");
+
+    const handleImportModel = async () => {
+        try {
+            const { open } = window.__TAURI__.dialog;
+            const selected = await open({
+                filters: [{ name: 'GGUF Model', extensions: ['gguf'] }],
+                multiple: false
+            });
+            
+            if (selected) {
+                setImportStatus("Importing model...");
+                const res = await fetch('/api/setup/import-model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_path: selected })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const interval = setInterval(async () => {
+                        const statusRes = await fetch('/api/setup/download-status');
+                        const statusData = await statusRes.json();
+                        if (statusData.model.status === 'done') {
+                            clearInterval(interval);
+                            setImportStatus("✅ Import successful! Engine restarting...");
+                            setTimeout(() => setImportStatus(""), 4000);
+                        } else if (statusData.model.status === 'error') {
+                            clearInterval(interval);
+                            setImportStatus("❌ Import failed: " + statusData.model.error);
+                        } else if (statusData.model.status === 'downloading') {
+                            setImportStatus(`Importing... ${statusData.model.progress.toFixed(1)}% (${statusData.model.downloaded_mb}MB)`);
+                        }
+                    }, 1000);
+                } else {
+                    setImportStatus("❌ Error: " + data.message);
+                }
+            }
+        } catch (err) {
+            setImportStatus("❌ Dialog error: " + err.message);
+        }
+    };
 
     // Engine / Hardware state
     const [engineCfg, setEngineCfg] = useState(null);
@@ -132,6 +178,26 @@ export default function SettingsArea() {
                                     <option value="cuda">CUDA (NVIDIA RTX/GTX)</option>
                                     <option value="metal">Metal (Apple M1/M2/M3)</option>
                                 </select>
+                            </div>
+
+                            {/* Active LLM Model */}
+                            <div className="bg-neutral-900/50 rounded-xl p-4 border border-neutral-800 col-span-1 md:col-span-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <p className="text-sm font-semibold text-white">Active LLM Model</p>
+                                    <button type="button" onClick={handleImportModel} className="text-[10px] bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded font-bold transition-colors">Import Local (.gguf)</button>
+                                </div>
+                                {importStatus && <p className="text-xs text-yellow-400 mb-2 font-semibold">{importStatus}</p>}
+                                <select
+                                    value={modelsData?.active || ""}
+                                    onChange={(e) => changeModelMutation.mutate({ model: e.target.value })}
+                                    disabled={modelsLoading || changeModelMutation.isPending}
+                                    className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neutral-500 cursor-pointer disabled:opacity-50"
+                                >
+                                    {modelsData?.list.map(m => (
+                                        <option key={m} value={m}>{m.split('/').pop()}</option>
+                                    ))}
+                                </select>
+                                {changeModelMutation.isPending && <p className="text-[10px] text-neutral-400 mt-2">Switching model and restarting engine...</p>}
                             </div>
 
                             {/* GPU Layers */}

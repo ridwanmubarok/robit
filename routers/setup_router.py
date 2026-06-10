@@ -53,12 +53,17 @@ async def get_hardware_info():
     elif platform.system() == "Linux":
         recommended_engine = "Vulkan"
         
+    free_ram_gb = round(psutil.virtual_memory().available / (1024**3), 1)
+
     return {
         "success": True,
         "os": os_name,
         "ram": f"{ram_gb} GB",
         "gpu": gpu_info,
         "recommendedEngine": recommended_engine,
+        "ram_gb": ram_gb,
+        "free_ram_gb": free_ram_gb,
+        "gpu_name": gpu_info,
         "recommendedModel": "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf"
     }
 
