@@ -39,6 +39,20 @@ class RobitRAG:
         else:
             self.doc_status = {}
 
+    def clear(self):
+        print(f"[RAG] Clearing vector index for {self.index_file}...")
+        self.index = IdMapIndex(dim=self.dim, bit_width=4)
+        self.chunk_map = {}
+        self.doc_status = {}
+        
+        # Remove files from disk
+        for path in [self.index_file, self.map_file, self.status_file]:
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception as e:
+                    print(f"[RAG] Error removing {path}: {e}")
+
     def _chunk_text(self, text, chunk_size=300, overlap=50):
         words = text.split()
         chunks = []
@@ -151,14 +165,13 @@ class RobitRAG:
                                 
                                 self.index.add_with_ids(embeddings, ids)
                                 
-                                # Use relative path as source
-                                rel_path = os.path.relpath(filepath, workspace_path)
+                                # Store the absolute path in the source information
                                 for i, chunk in zip(ids, chunks):
-                                    self.chunk_map[str(i)] = f"[Source: {rel_path}] {chunk}"
+                                    self.chunk_map[str(i)] = f"[Source: {filepath}] {chunk}"
                                 total_files += 1
                                 total_chunks += len(chunks)
                     except Exception as e:
-                        print(f"[RAG] Failed to read {filepath}: {e}")
+                         print(f"[RAG] Failed to read {filepath}: {e}")
                         
         if total_files > 0:
             self.index.write(self.index_file)

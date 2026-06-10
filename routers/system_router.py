@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, File, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 import time
 import os
 import pypdf
@@ -374,33 +374,45 @@ async def generate_planning_endpoint(request: Request):
 @router.post("/api/planning/index-codebase")
 async def index_codebase_endpoint(request: Request):
     body = await request.json()
-    target_dir = body.get("target_dir", ".").strip()
+    target_dirs = body.get("target_dirs", [])
     
     try:
-        # Resolve target directory
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
-        
-        if not target_dir or target_dir == ".":
-            resolved_dir = workspace_root
-        elif os.path.isabs(target_dir):
-            resolved_dir = os.path.abspath(target_dir)
-        else:
-            resolved_dir = os.path.abspath(os.path.join(workspace_root, target_dir))
-            
-        if not os.path.exists(resolved_dir) or not os.path.isdir(resolved_dir):
-            return {"success": False, "error": f"Direktori {resolved_dir} tidak ditemukan."}
-            
-        # Get codebase RAG engine
         from services.rag_service import get_codebase_rag_engine
         import asyncio
-        
-        # Run indexing in a background thread as it can be slow
         db = get_codebase_rag_engine()
-        result_msg = await asyncio.to_thread(db.ingest_workspace, resolved_dir)
         
+        # Clear the index first to index the fresh set of project folders
+        db.clear()
+        
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
+        
+        indexed_count = 0
+        total_msg = []
+        
+        for tdir in target_dirs:
+            tdir = tdir.strip()
+            if not tdir:
+                continue
+            if tdir == ".":
+                resolved_dir = workspace_root
+            elif os.path.isabs(tdir):
+                resolved_dir = os.path.abspath(tdir)
+            else:
+                resolved_dir = os.path.abspath(os.path.join(workspace_root, tdir))
+                
+            if os.path.exists(resolved_dir) and os.path.isdir(resolved_dir):
+                result_msg = await asyncio.to_thread(db.ingest_workspace, resolved_dir)
+                total_msg.append(f"{os.path.basename(resolved_dir)}: {result_msg}")
+                indexed_count += 1
+            else:
+                total_msg.append(f"{tdir}: Direktori tidak ditemukan.")
+                
+        if indexed_count == 0:
+            return {"success": False, "error": "Tidak ada direktori valid yang berhasil diindeks."}
+            
         return {
             "success": True,
-            "message": result_msg
+            "message": " | ".join(total_msg)
         }
     except Exception as e:
         return {
@@ -515,21 +527,32 @@ def detect_tech_stack(workspace_path: str) -> str:
 @router.post("/api/planning/detect-tech")
 async def detect_tech_endpoint(request: Request):
     body = await request.json()
-    target_dir = body.get("target_dir", ".").strip()
+    target_dirs = body.get("target_dirs", [])
     
     try:
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
-        if not target_dir or target_dir == ".":
-            resolved_dir = workspace_root
-        elif os.path.isabs(target_dir):
-            resolved_dir = os.path.abspath(target_dir)
-        else:
-            resolved_dir = os.path.abspath(os.path.join(workspace_root, target_dir))
-            
-        if not os.path.exists(resolved_dir) or not os.path.isdir(resolved_dir):
-            return {"success": False, "error": f"Direktori {resolved_dir} tidak ditemukan."}
-            
-        tech_stack = detect_tech_stack(resolved_dir)
+        
+        techs = []
+        for tdir in target_dirs:
+            tdir = tdir.strip()
+            if not tdir:
+                continue
+            if tdir == ".":
+                resolved_dir = workspace_root
+            elif os.path.isabs(tdir):
+                resolved_dir = os.path.abspath(tdir)
+            else:
+                resolved_dir = os.path.abspath(os.path.join(workspace_root, tdir))
+                
+            if os.path.exists(resolved_dir) and os.path.isdir(resolved_dir):
+                stack_str = detect_tech_stack(resolved_dir)
+                if stack_str and stack_str != "Not detected":
+                    # Split and add
+                    for t in stack_str.split(", "):
+                        if t not in techs:
+                            techs.append(t)
+                            
+        tech_stack = ", ".join(techs) if techs else "Not detected"
         return {
             "success": True,
             "tech_stack": tech_stack
@@ -553,6 +576,10 @@ async def select_dir_endpoint():
             return selected
             
         selected_dir = await asyncio.to_thread(ask_dir)
+        # Ensure selected_dir is a clean string
+        if not isinstance(selected_dir, str):
+            selected_dir = ""
+            
         return {"success": True, "directory": selected_dir}
     except Exception as e:
         return {"success": False, "error": f"Gagal membuka folder picker: {str(e)}"}
@@ -599,5 +626,137 @@ async def save_planning_endpoint(request: Request):
             "success": False,
             "error": f"Gagal menyimpan file: {str(e)}"
         }
+
+@router.post("/api/planning/chat")
+async def planning_chat_endpoint(request: Request):
+    health_ok = await llm_service.check_engine_health()
+    if not health_ok:
+        return {"error": f"Engine not ready. Status: {llm_service.state.status}"}
+
+    body = await request.json()
+    messages = body.get("messages", [])
+    target_dirs = body.get("target_dirs", [])
+    tech_stack = body.get("tech_stack", "").strip()
+
+    if not messages:
+        return {"error": "Tidak ada pesan chat."}
+
+    latest_query = messages[-1].get("content", "").strip()
+
+    # Search codebase RAG
+    codebase_rag_context = ""
+    auto_files = []
+    try:
+        from services.rag_service import get_codebase_rag_engine
+        db = get_codebase_rag_engine()
+        if db.chunk_map and latest_query:
+            results = db.search(latest_query, k=5)
+            if results and "Database is empty" not in results:
+                codebase_rag_context = results
+                
+                # Extract file paths from sources (absolute path format)
+                chunks = results.split("\n\n---\n\n")
+                for chunk in chunks:
+                    if chunk.startswith("[Source: "):
+                        end_idx = chunk.find("]")
+                        if end_idx != -1:
+                            source_file = chunk[9:end_idx]
+                            if os.path.exists(source_file) and source_file not in auto_files:
+                                auto_files.append(source_file)
+                auto_files = auto_files[:4]
+    except Exception as re:
+        print(f"[PLANNING CHAT] Codebase RAG search error: {re}")
+
+    # Read files context with dynamic budgeting to avoid HTTP 400 Context Overflow
+    files_context = ""
+    try:
+        from core.config import CONTEXT_SIZE
+        max_context_size = int(db_service.get_setting("context_size", CONTEXT_SIZE))
+        
+        # Budget estimation
+        max_prompt_tokens = max(2000, max_context_size - 3000)
+        max_prompt_chars = int(max_prompt_tokens * 3.2)
+        
+        fixed_overhead = 3000
+        history_len = sum(len(m.get("content", "")) for m in messages)
+        
+        available_chars = max_prompt_chars - fixed_overhead - history_len
+        if available_chars < 1500:
+            available_chars = 1500
+            
+        rag_budget = max(1000, min(3000, int(available_chars * 0.25)))
+        files_budget = max(1000, available_chars - rag_budget)
+
+        if codebase_rag_context and len(codebase_rag_context) > rag_budget:
+            codebase_rag_context = codebase_rag_context[:rag_budget] + "\n... [Konteks RAG dipotong] ..."
+
+        if auto_files:
+            auto_files = [f for f in auto_files if "node_modules" not in f.split(os.sep)]
+            if auto_files:
+                per_file_budget = max(1024, files_budget // len(auto_files))
+                for file_path in auto_files:
+                    if os.path.exists(file_path) and os.path.isfile(file_path):
+                        try:
+                            file_size = os.path.getsize(file_path)
+                            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                                if file_size > per_file_budget:
+                                    file_content = f.read(per_file_budget) + "\n... [Konten file dipotong] ..."
+                                else:
+                                    file_content = f.read()
+                            
+                            # Clean display name based on target dirs
+                            display_name = os.path.basename(file_path)
+                            for tdir in target_dirs:
+                                if file_path.startswith(tdir):
+                                    display_name = os.path.relpath(file_path, tdir)
+                                    break
+                            files_context += f"\nFile: {display_name} ({file_path})\n```\n{file_content}\n```\n"
+                        except Exception:
+                            pass
+    except Exception as be:
+        print(f"[PLANNING CHAT] Budgeting error: {be}")
+
+    # Prepare chat prompt payload
+    system_content = (
+        "You are an expert software architect and senior developer.\n"
+        "Your task is to help the user plan code changes, write implementation plans, and answer technical questions "
+        "about their active projects.\n"
+    )
+    if tech_stack:
+        system_content += f"Active Technology Stack: {tech_stack}\n"
+    if codebase_rag_context:
+        system_content += (
+            f"\nHere are semantically matched code blocks retrieved from the codebase (RAG):\n"
+            f"{codebase_rag_context}\n"
+        )
+    if files_context:
+        system_content += (
+            f"\nHere is the code content of relevant files in the codebase:\n"
+            f"{files_context}\n"
+        )
+    system_content += (
+        "\nAnswer the user's questions clearly and technically. "
+        "If they ask for an implementation plan, format it in Markdown with Goals, Proposed Changes, Verification Plan, and Caveats. "
+        "Otherwise, answer their queries directly and technically. Base your responses on the codebase context provided above."
+    )
+
+    payload = {
+        "messages": [
+            {"role": "system", "content": system_content},
+            *messages
+        ],
+        "temperature": 0.2,
+        "max_tokens": 4096,
+        "stream": True
+    }
+
+    async def stream_generator():
+        async for chunk in llm_service.stream_llm_response(payload):
+            yield chunk
+
+    return StreamingResponse(
+        stream_generator(),
+        media_type="text/event-stream"
+    )
 
 

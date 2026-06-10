@@ -105,7 +105,7 @@ export default function TranslateArea() {
                     <div className="flex items-center justify-between border-b border-[#1f2937]/50 pb-3">
                         <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Asal</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">From</span>
                         </div>
                         <select 
                             value={sourceLang}
@@ -144,7 +144,7 @@ export default function TranslateArea() {
                     <div className="flex items-center justify-between border-b border-[#1f2937]/50 pb-3">
                         <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tujuan</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">To</span>
                         </div>
                         <div className="flex items-center gap-2">
                             {sourceLang !== 'Auto' && (
