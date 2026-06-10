@@ -2,6 +2,10 @@ import subprocess
 import sys
 import time
 import os
+import json
+import tempfile
+import time
+import os
 import uvicorn
 import httpx
 import socket
@@ -18,6 +22,9 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import pypdf
 import io
+import database
+
+database.init_db()
 
 # Load .env configuration
 load_dotenv()
@@ -56,7 +63,8 @@ if sys.platform == "win32":
 
 # --- Load from .env ---
 GPU_MODE = os.getenv("USE_GPU", "false").lower() == "true"
-MODEL_PATH = os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf"))
+default_model = os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf"))
+MODEL_PATH = database.get_setting("active_model", default_model)
 LLM_HOST = "127.0.0.1"
 LLM_PORT = int(os.getenv("LLM_PORT", 8888))
 WEB_PORT = int(os.getenv("WEB_PORT", 8000))
@@ -64,15 +72,17 @@ SYSTEM_PROMPT = """You are ROBIT, a Research and Development (R&D) AI assistant 
 
 IDENTITY & CAPABILITIES:
 - You perform deep internet research to retrieve the most up-to-date information.
+- You can read and retrieve information from internal user documents (PDFs/TXTs) using your RAG database.
 - You provide accurate technical analysis for coding, science, and business.
 - You optimize coding solutions provided by the user.
 
 TOOL CALLING (Use the following XML tags - MUST BE EXACT):
 1.  <search query="topic"/> : Perform an internet search (via DuckDuckGo). Use this to obtain current information, news, or technical documentation that you do not already know.
+2.  <ask_docs query="topic"/> : Search the user's internal/local document database (RAG). Use this when the user asks about their own files, PDFs, or books.
 
 OPERATIONAL RULES:
 - Provide answers that are TECHNICAL, ACCURATE, and DIRECTLY to the point.
-- If you need new information, use the <search> tool first. Search results will be provided in the next message as a 'TOOL RESULT'.
+- If you need new information, use the <search> or <ask_docs> tool first. Search results will be provided in the next message as a 'TOOL RESULT'.
 - Upon receiving a 'TOOL RESULT', analyze the findings and fulfill the user's request using that data.
 - For web development (HTML/CSS), help users optimize their code to look perfect in the UI's PREVIEW feature.
 
@@ -222,6 +232,75 @@ async def prewarm_kv_cache():
         print(f"[OPTIM] L4: Pre-warm failed (non-critical): {e}")
         state.status = "Ready"
 
+def start_engine():
+    global MODEL_PATH
+    MODEL_PATH = database.get_setting("active_model", default_model)
+    
+    if not os.path.exists(ENGINE_PATH):
+        err = f"Error: Engine not found at {ENGINE_PATH}"
+        state.logs.append(err)
+        print(err)
+        return
+
+    cmd = [
+        ENGINE_PATH,
+        "-m",     MODEL_PATH,
+        "--host", LLM_HOST,
+        "--port", str(LLM_PORT),
+        "-c",     CONTEXT_SIZE,
+        "-t",     str(THREADS),
+        "-b",     BATCH_SIZE,
+        "-ub",    UBATCH_SIZE,
+        "--no-webui",
+    ]
+
+    if GPU_MODE:
+        cmd += [
+            "-ngl",  GPU_LAYERS,
+            "-fa",   FLASH_ATTENTION,
+            "--parallel", GPU_PARALLEL,
+            "--mmap",
+        ]
+        print(f"[OPTIM] GPU Mode: {GPU_LAYERS} layers -> Vulkan | {GPU_PARALLEL} parallel slot(s) | OS Paging Active")
+    else:
+        cmd += [
+            "-ngl",  "0",
+            "-fa",   FLASH_ATTENTION,
+            "-ctk",  KV_QUANT,
+            "-ctv",  KV_QUANT,
+            "--mmap",
+            "--no-warmup",
+        ]
+        if NGRAM_SPEC:
+            cmd += ["--spec-type", "ngram-simple", "--draft", NGRAM_DRAFT]
+            print(f"[OPTIM] CPU Mode: N-Gram Speculative Decoding active (draft={NGRAM_DRAFT})")
+
+    state.engine_process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+    
+    threading.Thread(target=engine_logger, daemon=True).start()
+    boost_process_priority(state.engine_process.pid)
+    
+    if not GPU_MODE:
+        set_cpu_affinity(state.engine_process.pid)
+        
+    state.is_warmed_up = False
+
+def stop_engine():
+    if state.engine_process:
+        state.engine_process.terminate()
+        try:
+            state.engine_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            state.engine_process.kill()
+        state.engine_process = None
+        state.status = "Engine Stopped"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Rogatekno Labs - Max Performance Mode Initializing...")
@@ -251,64 +330,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[INIT] Warning: Could not set permissions or sign binary: {e}")
 
-    # =====================================================================
-    # LAYER 1: Fine-tuned Engine Parameters
-    # LAYER 2: N-Gram Speculative Decoding (--spec-type ngram-simple)
-    # =====================================================================
-
-    # Base command (shared between CPU and GPU modes)
-    cmd = [
-        ENGINE_PATH,
-        "-m",     MODEL_PATH,
-        "--host", LLM_HOST,
-        "--port", str(LLM_PORT),
-        "-c",     CONTEXT_SIZE,
-        "-t",     str(THREADS),
-        "-b",     BATCH_SIZE,
-        "-ub",    UBATCH_SIZE,
-        "--no-webui",
-    ]
-
-    if GPU_MODE:
-        cmd += [
-            "-ngl",  GPU_LAYERS,
-            "-fa",   FLASH_ATTENTION,
-            # Single parallel slot = eliminates 75% wasted KV cache for single-user research
-            "--parallel", GPU_PARALLEL,
-            "--mmap",
-            "--mlock",
-        ]
-        print(f"[OPTIM] GPU Mode: {GPU_LAYERS} layers -> Vulkan | {GPU_PARALLEL} parallel slot(s) | MLOCK Active")
-    else:
-        cmd += [
-            "-ngl",  "0",
-            "-fa",   FLASH_ATTENTION,
-            "-ctk",  KV_QUANT,
-            "-ctv",  KV_QUANT,
-            "--mmap",
-            "--mlock",
-            "--no-warmup",
-        ]
-        if NGRAM_SPEC:
-            cmd += ["--spec-type", "ngram-simple", "--draft", NGRAM_DRAFT]
-            print(f"[OPTIM] CPU Mode: N-Gram Speculative Decoding active (draft={NGRAM_DRAFT})")
-
-    state.engine_process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        bufsize=1
-    )
-
-    # LAYER 3: Boost OS process priority
-    boost_process_priority(state.engine_process.pid)
-    set_cpu_affinity(state.engine_process.pid)
-
-    log_thread = threading.Thread(target=engine_logger, daemon=True)
-    log_thread.start()
+    start_engine()
 
     state.status = "Loading Model..."
 
@@ -324,8 +346,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    if state.engine_process:
-        state.engine_process.terminate()
+    stop_engine()
     await state.http_client.aclose()
 
 app = FastAPI(lifespan=lifespan)
@@ -339,9 +360,14 @@ async def chat_proxy(request: Request):
     body = await request.json()
 
     messages = body.get("messages", [])
-    if not any(m.get("role") == "system" for m in messages):
+    system_msg = next((m for m in messages if m.get("role") == "system"), None)
+    if system_msg:
+        if "INTERNAL SYSTEM DIRECTIVES" not in system_msg["content"]:
+            system_msg["content"] = system_msg["content"] + "\n\n--- INTERNAL SYSTEM DIRECTIVES ---\n" + SYSTEM_PROMPT
+    else:
         messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
-        body["messages"] = messages
+    
+    body["messages"] = messages
 
     url = f"http://{LLM_HOST}:{LLM_PORT}/v1/chat/completions"
 
@@ -549,7 +575,94 @@ async def fs_write(request: Request):
     except Exception as e:
         return {"error": str(e), "success": False}
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+@app.get("/api/history")
+async def get_history():
+    sessions = database.get_all_sessions()
+    active = database.get_setting("active_session", None)
+    return {"active_session": active, "sessions": sessions}
+
+@app.post("/api/history")
+async def save_history(request: Request):
+    body = await request.json()
+    active_session = body.get("active_session")
+    sessions = body.get("sessions", {})
+    if active_session:
+        database.set_setting("active_session", active_session)
+    database.save_all_sessions(sessions)
+    return {"success": True}
+
+@app.get("/api/models")
+async def get_models():
+    models_dir = "models"
+    available = []
+    if os.path.exists(models_dir):
+        for f in os.listdir(models_dir):
+            if f.endswith(".gguf"):
+                available.append(f)
+    active_model = os.path.basename(database.get_setting("active_model", default_model))
+    return {"success": True, "models": available, "active": active_model}
+
+@app.post("/api/settings/model")
+async def set_model(request: Request):
+    body = await request.json()
+    model_name = body.get("model")
+    if not model_name:
+        return {"success": False, "error": "Model name required"}
+    
+    full_path = os.path.join("models", model_name)
+    if not os.path.exists(full_path):
+        return {"success": False, "error": "Model file not found"}
+        
+    database.set_setting("active_model", full_path)
+    stop_engine()
+    start_engine()
+    # Trigger a new KV cache warm-up since the engine restarted
+    asyncio.create_task(prewarm_kv_cache())
+    return {"success": True}
+
+@app.post("/api/rag/upload")
+async def rag_upload(file: UploadFile = File(...)):
+    try:
+        from rag import get_rag_engine
+        engine = get_rag_engine()
+        
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file.filename)
+        
+        with open(temp_path, "wb") as f:
+            f.write(await file.read())
+            
+        result = engine.ingest_file(temp_path)
+        os.remove(temp_path)
+        
+        return {"success": True, "message": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/rag/docs")
+async def get_rag_docs():
+    try:
+        from rag import get_rag_engine
+        engine = get_rag_engine()
+        return {"success": True, "docs": engine.list_documents()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/rag/docs/delete")
+async def delete_rag_doc(request: Request):
+    body = await request.json()
+    filename = body.get("filename")
+    if not filename:
+        return {"success": False, "error": "No filename provided"}
+    try:
+        from rag import get_rag_engine
+        engine = get_rag_engine()
+        deleted_chunks = engine.delete_document(filename)
+        return {"success": True, "deleted_chunks": deleted_chunks}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+app.mount("/", StaticFiles(directory="ui/dist", html=True), name="static")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=WEB_PORT)

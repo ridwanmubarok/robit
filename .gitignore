@@ -21,6 +21,12 @@ bin-cuda/*.dll
 bin-vulkan/*.exe
 bin-vulkan/*.dll
 
+/*.gz
+
+bin-vulkan
+bin-cuda
+bin-metal
+
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -29,3 +35,6 @@ desktop.ini
 .idea/
 *.log
 help.txt
+
+*.db
+robbit.db

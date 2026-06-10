@@ -48,6 +48,16 @@ def status():
         console.print(f"[bold red]Error:[/bold red] Could not connect to ROBIT server. Is it running? (Use 'robit serve')")
 
 @cli.command()
+@click.argument('path')
+def ingest(path):
+    """Ingest a PDF or Text file into the local RAG Vector Database."""
+    console.print(f"[bold green]Starting Ingestion for:[/bold green] {path}")
+    from rag import get_rag_engine
+    engine = get_rag_engine()
+    result = engine.ingest_file(path)
+    console.print(f"[bold cyan]Result:[/bold cyan] {result}")
+
+@cli.command()
 def serve():
     """Start the ROBIT FastAPI Web Server."""
     console.print(Panel("[bold green]Starting ROBIT Web Server...[/bold green]\nAccess at http://127.0.0.1:8000", title="ROBIT Labs"))
@@ -102,6 +112,21 @@ def handle_tools(text):
         console.print(f"\n[bold yellow]🔍 AGENT: Searching the web for '{query}'...[/bold yellow]")
         res = httpx.post(f"{get_server_url()}/api/fs/search", json={"query": query}, timeout=30.0).json()
         result_text = f"Search Results for '{query}':\n{res.get('content')}" if res.get('success') else f"Error: {res.get('error')}"
+        new_messages.append({"role": "user", "content": f"TOOL RESULT: {result_text}"})
+        tools_found = True
+
+    # RAG Search Tool
+    rag_matches = re.finditer(r'<ask_docs\s+query=["\'](.*?)["\']\s*/>', text)
+    for m in rag_matches:
+        query = m.group(1)
+        console.print(f"\n[bold yellow]📚 AGENT: Searching internal documents for '{query}'...[/bold yellow]")
+        try:
+            from rag import get_rag_engine
+            engine = get_rag_engine()
+            result_text = engine.search(query, k=3)
+            result_text = f"Internal Document Results for '{query}':\n{result_text}"
+        except Exception as e:
+            result_text = f"Error searching documents: {e}"
         new_messages.append({"role": "user", "content": f"TOOL RESULT: {result_text}"})
         tools_found = True
 
