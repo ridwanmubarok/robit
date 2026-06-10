@@ -480,8 +480,14 @@ async def extract_text(file: UploadFile = File(...)):
             for page in reader.pages:
                 text = page.extract_text()
                 if text:
-                    clean_text = "\n".join([line.strip() for line in text.split("\n") if line.strip()])
-                    content += clean_text + "\n"
+                    content += text + "\n"
+        elif extension in ["png", "jpg", "jpeg", "webp", "bmp"]:
+            from rapidocr_onnxruntime import RapidOCR
+            ocr = RapidOCR()
+            result, _ = ocr(file_bytes)
+            if result:
+                for idx in range(len(result)):
+                    content += result[idx][1] + "\n"
         else:
             raw_text = file_bytes.decode("utf-8", errors="replace")
             content = "\n".join([line.strip() for line in raw_text.split("\n") if line.strip()])
