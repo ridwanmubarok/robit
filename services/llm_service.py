@@ -234,3 +234,46 @@ async def translate_text(text: str, source_lang: str, target_lang: str):
         parsed = json.loads(content)
         return parsed
 
+async def generate_coding_plan(feature_name: str, tech_stack: str, requirements: str, files_scope: str = ""):
+    prompt = (
+        f"Generate a highly detailed, professional, and practical Coding/Implementation Plan in Markdown format for the following feature:\n\n"
+        f"Feature Name: {feature_name}\n"
+        f"Technology Stack: {tech_stack}\n"
+        f"Scope / Files to Modify (optional): {files_scope if files_scope else 'Not specified'}\n"
+        f"Detailed Requirements / Description:\n{requirements}\n\n"
+        f"Structure the markdown plan EXACTLY with the following sections:\n"
+        f"# Goal Description\n"
+        f"Brief description of the problem, any background context, and what the change accomplishes.\n\n"
+        f"## Proposed Changes\n"
+        f"Group files by component or layer and order them logically. Use [NEW], [MODIFY], or [DELETE] to demarcate file status, and list filenames as bullet points. Explain what needs to be changed in each file.\n\n"
+        f"## Verification Plan\n"
+        f"Detailed instructions on how to verify the changes.\n"
+        f"### Automated Tests\n"
+        f"Provide mock command lines or test files/test descriptions.\n"
+        f"### Manual Verification\n"
+        f"Step-by-step description of manual validation (e.g., UI checks, API responses).\n\n"
+        f"## Potential Caveats & Design Considerations\n"
+        f"Any breaking changes, performance concerns, security implications, or edge cases to consider.\n\n"
+        f"Write the plan in Indonesian if the requirements/description is primarily in Indonesian, otherwise write it in English. Do not wrap the entire output in a single code block; return it as raw Markdown text."
+    )
+    
+    payload = {
+        "messages": [
+            {
+                "role": "system", 
+                "content": "You are an expert software architect and senior systems developer. You write precise, technical, and detailed implementation plans in raw Markdown."
+            },
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.2,
+        "max_tokens": 4096
+    }
+    
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        res = await client.post(f"http://{LLM_HOST}:{LLM_PORT}/v1/chat/completions", json=payload)
+        if res.status_code != 200:
+            raise Exception(f"Engine returned status code {res.status_code}")
+        data = res.json()
+        content = data["choices"][0]["message"]["content"].strip()
+        return content
+

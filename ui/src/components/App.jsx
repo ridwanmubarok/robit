@@ -8,6 +8,7 @@ import SettingsArea from './SettingsArea';
 import WhichLLMArea from './WhichLLMArea';
 import OCRArea from './OCRArea';
 import TranslateArea from './TranslateArea';
+import PlanningArea from './PlanningArea';
 import ConfirmModal from './ConfirmModal';
 import { useHistory, useSaveSession, useKbDocs, useToggleKBDoc, useDeleteKBDoc, useModels, useChangeModel } from '../hooks/useQueries';
 
@@ -515,6 +516,7 @@ function App() {
             } />
             <Route path="/ocr" element={<OCRArea />} />
             <Route path="/translate" element={<TranslateArea />} />
+            <Route path="/planning" element={<PlanningArea />} />
             <Route path="/settings" element={<SettingsArea />} />
             <Route path="/whichllm" element={<WhichLLMArea />} />
           </Routes>

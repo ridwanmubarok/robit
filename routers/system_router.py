@@ -230,3 +230,66 @@ async def translate_endpoint(request: Request):
             "success": False,
             "error": f"Gagal menerjemahkan: {str(e)}"
         }
+
+@router.post("/api/planning/generate")
+async def generate_planning_endpoint(request: Request):
+    body = await request.json()
+    feature_name = body.get("feature_name", "").strip()
+    tech_stack = body.get("tech_stack", "").strip()
+    requirements = body.get("requirements", "").strip()
+    files_scope = body.get("files_scope", "").strip()
+    
+    if not feature_name:
+        return {"success": False, "error": "Nama fitur tidak boleh kosong."}
+    if not requirements:
+        return {"success": False, "error": "Deskripsi kebutuhan tidak boleh kosong."}
+        
+    try:
+        plan = await llm_service.generate_coding_plan(feature_name, tech_stack, requirements, files_scope)
+        return {
+            "success": True,
+            "plan": plan
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Gagal men-generate coding plan: {str(e)}"
+        }
+
+@router.post("/api/planning/save")
+async def save_planning_endpoint(request: Request):
+    body = await request.json()
+    filename = body.get("filename", "implementation_plan.md").strip()
+    content = body.get("content", "").strip()
+    
+    if not content:
+        return {"success": False, "error": "Konten tidak boleh kosong."}
+    if not filename:
+        filename = "implementation_plan.md"
+        
+    try:
+        # Resolve path relative to the workspace root directory (parent of parent of routers folder)
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
+        target_path = os.path.abspath(os.path.join(workspace_root, filename))
+        
+        # Security check to prevent directory traversal
+        if not target_path.startswith(workspace_root):
+            target_path = os.path.join(workspace_root, os.path.basename(filename))
+            
+        # Ensure parent folder exists
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        
+        with open(target_path, "w", encoding="utf-8") as f:
+            f.write(content)
+            
+        return {
+            "success": True,
+            "filepath": target_path,
+            "filename": os.path.basename(target_path)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Gagal menyimpan file: {str(e)}"
+        }
+
