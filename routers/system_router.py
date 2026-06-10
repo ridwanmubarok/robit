@@ -6,11 +6,49 @@ import pypdf
 import io
 import urllib.parse
 from rapidocr_onnxruntime import RapidOCR
+from ddgs import DDGS
 
 from services import db_service, llm_service
+from services.rag_service import get_rag_engine
 from core.config import DEFAULT_MODEL
 
 router = APIRouter()
+
+@router.post("/api/search")
+async def search_web(request: Request):
+    """DuckDuckGo web search for ROBIT tool calls."""
+    body = await request.json()
+    query = body.get("query", "").strip()
+    if not query:
+        return {"success": False, "error": "No query provided", "results": ""}
+    try:
+        with DDGS() as ddgs:
+            raw = list(ddgs.text(query, max_results=6))
+        if not raw:
+            return {"success": True, "results": "Tidak ada hasil ditemukan untuk query tersebut."}
+        lines = []
+        for i, r in enumerate(raw, 1):
+            lines.append(f"{i}. **{r.get('title', '')}**\n   {r.get('href', '')}\n   {r.get('body', '')}")
+        return {"success": True, "results": "\n\n".join(lines)}
+    except Exception as e:
+        return {"success": False, "error": str(e), "results": f"Search error: {e}"}
+
+@router.post("/api/rag/query")
+async def rag_query(request: Request):
+    """Query the RAG knowledge base."""
+    body = await request.json()
+    query = body.get("query", "").strip()
+    top_k = int(body.get("top_k", 3))
+    if not query:
+        return {"success": False, "results": "No query provided"}
+    try:
+        engine = get_rag_engine()
+        results = engine.search(query, k=top_k)
+        return {"success": True, "results": results or "Tidak ada dokumen relevan ditemukan."}
+    except Exception as e:
+        return {"success": False, "results": f"RAG error: {e}"}
+
+
 
 @router.get("/v1/models")
 async def models_proxy():
@@ -168,3 +206,27 @@ async def fs_read(request: Request):
             return {"content": content, "success": True}
     except Exception as e:
         return {"error": str(e), "success": False}
+
+@router.post("/api/translate")
+async def translate_endpoint(request: Request):
+    body = await request.json()
+    text = body.get("text", "").strip()
+    source_lang = body.get("source_lang", "Auto").strip()
+    target_lang = body.get("target_lang", "Indonesian").strip()
+    
+    if not text:
+        return {"success": False, "error": "Teks sumber tidak boleh kosong."}
+        
+    try:
+        result = await llm_service.translate_text(text, source_lang, target_lang)
+        return {
+            "success": True,
+            "translation": result.get("translation", ""),
+            "replies": result.get("replies", [])
+        }
+    except Exception as e:
+        # Fallback: if JSON parse fails or LLM has error, return raw error or mock replies
+        return {
+            "success": False,
+            "error": f"Gagal menerjemahkan: {str(e)}"
+        }

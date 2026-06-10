@@ -182,3 +182,55 @@ async def stream_llm_response(payload):
             async for chunk in r.aiter_lines():
                 if chunk:
                     yield chunk + "\n"
+
+async def translate_text(text: str, source_lang: str, target_lang: str):
+    prompt = (
+        f"You are an expert multilingual translation assistant.\n"
+        f"Translate the following text from '{source_lang}' to '{target_lang}'.\n"
+        f"After translating, analyze the original text/context and suggest exactly 3 short, context-appropriate, helpful replies or follow-ups in '{target_lang}' (or the language of the original text if more appropriate for replying).\n\n"
+        f"Format your response EXACTLY as a single valid JSON object containing the translation and the list of replies. "
+        f"Do NOT include any markdown code blocks, backticks, or other text outside the JSON object.\n\n"
+        f"JSON Schema:\n"
+        f"{{\n"
+        f"  \"translation\": \"translated text here\",\n"
+        f"  \"replies\": [\n"
+        f"    \"suggested reply 1\",\n"
+        f"    \"suggested reply 2\",\n"
+        f"    \"suggested reply 3\"\n"
+        f"  ]\n"
+        f"}}\n\n"
+        f"Text to translate:\n"
+        f"{text}"
+    )
+    
+    payload = {
+        "messages": [
+            {"role": "system", "content": "You are a JSON translation assistant. Output only raw JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.3,
+        "max_tokens": 1024
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        res = await client.post(f"http://{LLM_HOST}:{LLM_PORT}/v1/chat/completions", json=payload)
+        if res.status_code != 200:
+            raise Exception(f"Engine returned status code {res.status_code}")
+        data = res.json()
+        content = data["choices"][0]["message"]["content"].strip()
+        
+        # Clean the output if the model wrapped it in markdown code blocks
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1]
+            if content.endswith("```"):
+                content = content.rsplit("\n", 1)[0]
+                
+        # Fallback cleaning if there's text before or after the JSON braces
+        start_idx = content.find("{")
+        end_idx = content.rfind("}")
+        if start_idx != -1 and end_idx != -1:
+            content = content[start_idx:end_idx+1]
+            
+        parsed = json.loads(content)
+        return parsed
+

@@ -57,15 +57,73 @@ def ingest(path):
     result = engine.ingest_file(path)
     console.print(f"[bold cyan]Result:[/bold cyan] {result}")
 
+UI_DIR = os.path.join(os.path.dirname(__file__), "ui")
+
+def _build_frontend():
+    """Build the Astro frontend. Returns True on success."""
+    console.print("[bold cyan]📦 Building frontend...[/bold cyan]")
+    result = subprocess.run(
+        ["npm", "run", "build"],
+        cwd=UI_DIR,
+        capture_output=False,
+    )
+    if result.returncode != 0:
+        console.print("[bold red]❌ Frontend build failed. Fix errors above then retry.[/bold red]")
+        return False
+    console.print("[bold green]✅ Frontend built successfully.[/bold green]")
+    return True
+
 @cli.command()
-def serve():
-    """Start the ROBIT FastAPI Web Server."""
-    console.print(Panel("[bold green]Starting ROBIT Web Server...[/bold green]\nAccess at http://127.0.0.1:8000", title="ROBIT Labs"))
+@click.option("--skip-build", is_flag=True, default=False, help="Skip npm build (use existing dist/)")
+def serve(skip_build):
+    """Build the frontend then start the ROBIT FastAPI Web Server."""
+    if not skip_build:
+        if not _build_frontend():
+            return
+
+    console.print(Panel(
+        "[bold green]Starting ROBIT Web Server...[/bold green]\nAccess at [link=http://127.0.0.1:8000]http://127.0.0.1:8000[/link]",
+        title="ROBIT Labs"
+    ))
     try:
-        # We use uvicorn directly to avoid recursion or just call the script
         subprocess.run([sys.executable, "main.py"], check=True)
     except KeyboardInterrupt:
         console.print("\n[yellow]Server stopped by user.[/yellow]")
+
+@cli.command()
+def dev():
+    """Development mode: start backend + Astro dev server with hot-reload.
+    
+    Frontend runs on http://localhost:4321 with HMR.
+    All /api and /v1 requests are proxied to the Python backend on :8000.
+    No build step needed!
+    """
+    console.print(Panel(
+        "[bold cyan]ROBIT Dev Mode[/bold cyan]\n"
+        "Backend  → [link=http://127.0.0.1:8000]http://127.0.0.1:8000[/link]\n"
+        "Frontend → [link=http://localhost:4321]http://localhost:4321[/link]  [dim](with HMR)[/dim]\n\n"
+        "[dim]Edit UI files and they reload instantly — no build needed![/dim]",
+        title="ROBIT Dev"
+    ))
+    # Start Python backend in background
+    backend_proc = subprocess.Popen([sys.executable, "main.py"])
+    
+    # Give backend a moment to start
+    import time
+    time.sleep(2)
+    
+    # Start Astro dev server in foreground
+    try:
+        subprocess.run(["npm", "run", "dev"], cwd=UI_DIR, check=True)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        console.print("\n[yellow]Shutting down dev servers...[/yellow]")
+        backend_proc.terminate()
+        try:
+            backend_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            backend_proc.kill()
 
 import re
 

@@ -10,5 +10,5 @@ python-dotenv
 pypdf
 rich
 click
-duckduckgo-search
+ddgs
 rapidocr_onnxruntime
