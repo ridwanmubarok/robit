@@ -15,9 +15,6 @@ fi
 
 echo "Target triple for Tauri: $TARGET"
 
-# Find rapidocr package path
-RAPIDOCR_PATH=$(python3 -c "import rapidocr_onnxruntime, os; print(os.path.dirname(rapidocr_onnxruntime.__file__))")
-echo "rapidocr path: $RAPIDOCR_PATH"
 
 # Build single executable
 pyinstaller --noconfirm --onedir --console \
@@ -26,7 +23,12 @@ pyinstaller --noconfirm --onedir --console \
     --add-data "routers:routers" \
     --add-data "services:services" \
     --add-data "use_cases:use_cases" \
-    --add-data "$RAPIDOCR_PATH:rapidocr_onnxruntime" \
+    --collect-all "rapidocr_onnxruntime" \
+    --hidden-import "pyclipper" \
+    --hidden-import "shapely" \
+    --hidden-import "cv2" \
+    --hidden-import "onnxruntime" \
+    --hidden-import "yaml" \
     --hidden-import "uvicorn" \
     --hidden-import "fastapi" \
     --hidden-import "sqlite3" \

@@ -126,7 +126,7 @@ export default function SettingsArea() {
                                     value={engineCfg.gpu_backend}
                                     onChange={e => setEng('gpu_backend', e.target.value)}
                                     disabled={!engineCfg.use_gpu}
-                                    className="w-full bg-[#0a0a0a] border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none disabled:opacity-40"
+                                    className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neutral-500 disabled:opacity-40 cursor-pointer"
                                 >
                                     <option value="vulkan">Vulkan (AMD / Intel / Universal)</option>
                                     <option value="cuda">CUDA (NVIDIA RTX/GTX)</option>
@@ -171,7 +171,7 @@ export default function SettingsArea() {
                                 <select
                                     value={engineCfg.batch_size}
                                     onChange={e => setEng('batch_size', parseInt(e.target.value))}
-                                    className="w-full bg-[#0a0a0a] border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none"
+                                    className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neutral-500 cursor-pointer"
                                 >
                                     <option value={512}>512 — Low VRAM</option>
                                     <option value={1024}>1024 — Default</option>
@@ -235,7 +235,7 @@ export default function SettingsArea() {
                             <h3 className="text-sm font-bold uppercase tracking-wider text-neutral-300 mb-4">Context Window Size</h3>
                             <select
                                 {...register("context_size", { valueAsNumber: true })}
-                                className="w-full bg-[#0a0a0a]/70 border border-[#262626] rounded-xl px-4 py-3 text-neutral-200 focus:outline-none"
+                                className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-neutral-500 cursor-pointer"
                             >
                                 <option value={4096}>4096 (Default) — Low RAM</option>
                                 <option value={8192}>8192 — Standard</option>

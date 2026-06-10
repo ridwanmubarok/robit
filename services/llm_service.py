@@ -147,8 +147,14 @@ def start_engine():
         if NGRAM_SPEC:
             cmd += ["--spec-type", "ngram-simple", "--draft", NGRAM_DRAFT]
 
+    env = os.environ.copy()
+    # Completely remove LD_LIBRARY_PATH to prevent PyInstaller or Tauri from injecting 
+    # conflicting libstdc++ that causes Vulkan to fallback to lavapipe (CPU software renderer).
+    env.pop('LD_LIBRARY_PATH', None)
+    env.pop('LD_LIBRARY_PATH_ORIG', None)
+
     state.engine_process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env
     )
     
     threading.Thread(target=engine_logger, daemon=True).start()
