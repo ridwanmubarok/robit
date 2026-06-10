@@ -384,7 +384,7 @@ function App() {
     : [];
 
   return (
-    <div className="bg-[#0b0f19] text-slate-300 h-screen w-screen overflow-hidden flex items-center justify-center relative font-sans">
+    <div className="bg-[#000000] text-neutral-300 h-screen w-screen overflow-hidden flex flex-col relative font-sans">
       {/* Global Confirm Modal — rendered at root so it appears above everything */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
@@ -396,17 +396,17 @@ function App() {
 
       {/* Model Loading Progress Overlay */}
       {modelsData && !modelsData.is_ready && (
-        <div className="absolute inset-0 z-50 bg-[#070b13]/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 fade-in">
+        <div className="absolute inset-0 z-50 bg-[#000000]/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 fade-in">
           {/* Ambient Glow behind loader */}
-          <div className="absolute w-[400px] h-[400px] bg-cyan-500/10 blur-[80px] rounded-full pointer-events-none z-0"></div>
+          <div className="absolute w-[400px] h-[400px] bg-white/10 blur-[80px] rounded-full pointer-events-none z-0"></div>
           
           <div className="relative z-10 flex flex-col items-center max-w-lg w-full text-center">
             {/* Spinning & Pulsing Ring Loader */}
             <div className="relative w-20 h-20 mb-8">
-              <div className="absolute inset-0 rounded-full border-4 border-cyan-500/20"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-white/20"></div>
               <div className="absolute inset-0 rounded-full border-4 border-t-cyan-400 border-r-indigo-400 animate-spin"></div>
-              <div className="absolute inset-2 rounded-full bg-[#0b0f19] flex items-center justify-center">
-                <svg className="w-8 h-8 text-cyan-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="absolute inset-2 rounded-full bg-[#000000] flex items-center justify-center">
+                <svg className="w-8 h-8 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.172V5L8 4z" />
                 </svg>
               </div>
@@ -414,65 +414,63 @@ function App() {
             
             <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Memuat Model AI Lokal...</h2>
             
-            <div className="bg-[#111827]/80 border border-[#22304d]/50 px-4 py-2 rounded-xl mb-4 text-xs font-semibold text-cyan-400 tracking-wide inline-flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+            <div className="bg-[#0a0a0a]/80 border border-[#262626]/50 px-4 py-2 rounded-xl mb-4 text-xs font-semibold text-white tracking-wide inline-flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-white400 animate-ping"></span>
               {modelsData.active ? modelsData.active.split(/[/\\]/).pop() : "Model GGUF"}
             </div>
             
-            <p className="text-sm text-slate-400 mb-6 font-medium">
+            <p className="text-sm text-neutral-400 mb-6 font-medium">
               Status: <span className="text-indigo-300">{modelsData.status || "Inisialisasi engine..."}</span>
             </p>
             
             {/* Live Terminal Console Logs */}
-            <div className="w-full bg-[#070b12] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl text-left flex flex-col h-56">
-              <div className="bg-[#0f172a]/60 px-4 py-2.5 border-b border-slate-800/80 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Engine Console Logs</span>
+            <div className="w-full bg-[#000000] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl text-left flex flex-col h-56">
+              <div className="bg-[#0a0a0a]/60 px-4 py-2.5 border-b border-neutral-600/80 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest font-mono">Engine Console Logs</span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                  <span className="text-[9px] text-cyan-400/80 font-bold tracking-wider uppercase font-mono">Real-time</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-white400 animate-pulse"></span>
+                  <span className="text-[9px] text-white/80 font-bold tracking-wider uppercase font-mono">Real-time</span>
                 </span>
               </div>
-              <div className="p-4 font-mono text-[10px] text-slate-400 space-y-1.5 overflow-y-auto select-text flex-1 custom-scrollbar leading-relaxed">
+              <div className="p-4 font-mono text-[10px] text-neutral-400 space-y-1.5 overflow-y-auto select-text flex-1 custom-scrollbar leading-relaxed">
                 {modelsData.logs && modelsData.logs.length > 0 ? (
                   modelsData.logs.map((log, idx) => (
                     <div key={idx} className="break-all whitespace-pre-wrap select-text">{log}</div>
                   ))
                 ) : (
-                  <div className="text-slate-600 italic">Menunggu log sistem pertama...</div>
+                  <div className="text-neutral-600 italic">Menunggu log sistem pertama...</div>
                 )}
               </div>
             </div>
             
-            <p className="text-[10px] text-slate-500 mt-4 max-w-sm">
+            <p className="text-[10px] text-neutral-500 mt-4 max-w-sm">
               Model GGUF sedang dimuat ke memori lokal (RAM/VRAM) Anda. Proses ini membutuhkan waktu 10-30 detik tergantung ukuran model.
             </p>
           </div>
         </div>
       )}
 
-      {/* Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none z-0"></div>
-      <div className="absolute bottom-0 left-0 w-[600px] h-[400px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
 
-      <div className="w-full max-w-[95vw] lg:max-w-7xl rounded-3xl overflow-hidden flex flex-col shadow-2xl relative z-10 border border-white/10 bg-white/[0.02] backdrop-blur-xl h-[92vh]">
+
+      <div className="w-full h-full flex flex-col relative z-10 bg-transparent">
       {/* TOP HEADER BAR */}
-      <header className="h-16 border-b border-white/5 bg-transparent flex items-center justify-between px-6 z-20 shrink-0">
+      <header className="h-16 border-b border-neutral-600 bg-transparent flex items-center justify-between px-6 z-20 shrink-0">
           <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <div className="w-10 h-10 rounded-xl bg-neutral-900 flex items-center justify-center border border-white/10 shadow-lg">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                   </svg>
               </div>
               <div>
-                  <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">ROBIT</h1>
-                  <p className="text-[10px] text-cyan-400/80 font-semibold tracking-wider uppercase">Rogatekno Workspace</p>
+                  <h1 className="text-lg font-bold tracking-tight text-white">ROBIT</h1>
+                  <p className="text-[10px] text-neutral-400 font-semibold tracking-wider uppercase">Workspace</p>
               </div>
           </div>
 
           <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 bg-[#1e293b]/50 px-3 py-1.5 rounded-full border border-slate-800">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-xs text-slate-300 font-medium">
+              <div className="flex items-center gap-2 bg-neutral-900 px-3 py-1.5 rounded-full border border-white/10">
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                  <span className="text-xs text-neutral-300 font-medium">
                       {activeModel ? activeModel.split(/[/\\]/).pop().replace('.gguf', '') : 'Model Active'}
                   </span>
               </div>

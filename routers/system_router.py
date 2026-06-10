@@ -759,4 +759,32 @@ async def planning_chat_endpoint(request: Request):
         media_type="text/event-stream"
     )
 
+@router.get("/api/planning/projects")
+async def get_planning_projects_endpoint():
+    try:
+        projects = db_service.get_planning_projects()
+        return {"success": True, "projects": projects}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.post("/api/planning/projects")
+async def save_planning_project_endpoint(request: Request):
+    try:
+        data = await request.json()
+        if not data.get("id"):
+            import uuid
+            data["id"] = str(uuid.uuid4())
+        data["updated_at"] = int(time.time())
+        db_service.save_planning_project(data)
+        return {"success": True, "project": data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.delete("/api/planning/projects/{project_id}")
+async def delete_planning_project_endpoint(project_id: str):
+    try:
+        db_service.delete_planning_project(project_id)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 

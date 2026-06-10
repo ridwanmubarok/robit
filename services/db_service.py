@@ -21,6 +21,18 @@ def init_db():
             value TEXT
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS planning_projects (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            target_dirs TEXT,
+            save_dir TEXT,
+            filename TEXT,
+            tech_stack TEXT,
+            messages TEXT,
+            updated_at INTEGER
+        )
+    ''')
     conn.commit()
 
     # Migrate old JSON history
@@ -97,3 +109,58 @@ def save_all_sessions(sessions_dict):
         
     conn.commit()
     conn.close()
+
+def get_planning_projects():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('SELECT id, name, target_dirs, save_dir, filename, tech_stack, messages, updated_at FROM planning_projects ORDER BY updated_at DESC')
+    rows = c.fetchall()
+    conn.close()
+    projects = []
+    for row in rows:
+        projects.append({
+            "id": row[0],
+            "name": row[1],
+            "target_dirs": json.loads(row[2]) if row[2] else [],
+            "save_dir": row[3],
+            "filename": row[4],
+            "tech_stack": row[5],
+            "messages": json.loads(row[6]) if row[6] else [],
+            "updated_at": row[7]
+        })
+    return projects
+
+def save_planning_project(project):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO planning_projects (id, name, target_dirs, save_dir, filename, tech_stack, messages, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name=excluded.name,
+            target_dirs=excluded.target_dirs,
+            save_dir=excluded.save_dir,
+            filename=excluded.filename,
+            tech_stack=excluded.tech_stack,
+            messages=excluded.messages,
+            updated_at=excluded.updated_at
+    ''', (
+        project.get("id"),
+        project.get("name"),
+        json.dumps(project.get("target_dirs", [])),
+        project.get("save_dir", "."),
+        project.get("filename", "implementation_plan.md"),
+        project.get("tech_stack", ""),
+        json.dumps(project.get("messages", [])),
+        project.get("updated_at", 0)
+    ))
+    conn.commit()
+    conn.close()
+
+def delete_planning_project(project_id):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('DELETE FROM planning_projects WHERE id = ?', (project_id,))
+    conn.commit()
+    conn.close()
+
