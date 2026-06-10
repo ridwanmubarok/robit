@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 import time
 import socket
 import threading
@@ -19,19 +20,29 @@ from services import db_service
 EXT = ".exe" if os.name == "nt" else ""
 GPU_BACKEND = os.getenv("GPU_BACKEND", "vulkan").lower()
 
+# Determine base directory: when packaged with PyInstaller onedir,
+# the executable's directory is the bundle root. When running normally,
+# use the project root (parent of services/).
+if getattr(sys, 'frozen', False):
+    # Running inside PyInstaller bundle — executable is at bundle root
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    # Running normally via python main.py — use cwd
+    BASE_DIR = os.getcwd()
+
 if GPU_MODE:
     if GPU_BACKEND == "cuda":
-        default_dir = "bin-cuda"
+        default_dir = os.path.join(BASE_DIR, "bin-cuda")
         backend_name = "NVIDIA CUDA"
     elif GPU_BACKEND == "metal":
-        default_dir = "bin-metal"
+        default_dir = os.path.join(BASE_DIR, "bin-metal")
         backend_name = "Apple Metal"
     else:
-        default_dir = "bin-vulkan"
+        default_dir = os.path.join(BASE_DIR, "bin-vulkan")
         backend_name = "Universal Vulkan"
     ENGINE_PATH = os.getenv("GPU_ENGINE_PATH", os.path.join(default_dir, f"llama-server{EXT}"))
 else:
-    ENGINE_PATH = os.getenv("CPU_ENGINE_PATH", os.path.join("bin", f"llama-server{EXT}"))
+    ENGINE_PATH = os.getenv("CPU_ENGINE_PATH", os.path.join(BASE_DIR, "bin", f"llama-server{EXT}"))
 
 class AppState:
     def __init__(self):
@@ -74,7 +85,9 @@ def set_cpu_affinity(pid):
     try:
         p = psutil.Process(pid)
         if hasattr(p, "cpu_affinity"):
-            p.cpu_affinity(list(range(4)))
+            # Use ALL available cores, not just first 4
+            all_cores = list(range(psutil.cpu_count(logical=True)))
+            p.cpu_affinity(all_cores)
     except Exception:
         pass
 
@@ -116,6 +129,11 @@ async def prewarm_kv_cache():
 
 def start_engine():
     model_path = db_service.get_setting("active_model", os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf")))
+    
+    # Resolve model path relative to BASE_DIR if not absolute
+    if not os.path.isabs(model_path):
+        model_path = os.path.join(BASE_DIR, model_path)
+    
     if not os.path.exists(ENGINE_PATH):
         err = f"Error: Engine not found at {ENGINE_PATH}"
         state.logs.append(err)

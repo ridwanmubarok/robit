@@ -109,6 +109,79 @@ async def set_advanced_settings(request: Request):
         
     return {"success": True, "restarted": need_restart}
 
+@router.get("/api/settings/engine")
+async def get_engine_settings():
+    import json
+    from pathlib import Path
+    robit_dir = os.path.join(str(Path.home()), ".robit")
+    config_path = os.path.join(robit_dir, "config.json")
+    cfg = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                cfg = json.load(f)
+        except Exception:
+            pass
+    return {
+        "use_gpu": cfg.get("USE_GPU", "false").lower() == "true",
+        "gpu_backend": cfg.get("GPU_BACKEND", "vulkan"),
+        "threads": int(cfg.get("THREADS", 4)),
+        "context_size": int(cfg.get("CONTEXT_SIZE", 4096)),
+        "batch_size": int(cfg.get("BATCH_SIZE", 1024)),
+        "ubatch_size": int(cfg.get("UBATCH_SIZE", 512)),
+        "gpu_layers": int(cfg.get("GPU_LAYERS", 99)),
+        "flash_attention": cfg.get("FLASH_ATTENTION", "on") == "on",
+        "ngram_spec": cfg.get("NGRAM_SPEC", "true").lower() == "true",
+        "ngram_draft": int(cfg.get("NGRAM_DRAFT", 8)),
+    }
+
+@router.post("/api/settings/engine")
+async def set_engine_settings(request: Request):
+    import json
+    from pathlib import Path
+    data = await request.json()
+
+    robit_dir = os.path.join(str(Path.home()), ".robit")
+    os.makedirs(robit_dir, exist_ok=True)
+    config_path = os.path.join(robit_dir, "config.json")
+    cfg = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                cfg = json.load(f)
+        except Exception:
+            pass
+
+    if "use_gpu" in data:
+        cfg["USE_GPU"] = "true" if data["use_gpu"] else "false"
+    if "gpu_backend" in data:
+        cfg["GPU_BACKEND"] = data["gpu_backend"]
+    if "threads" in data:
+        cfg["THREADS"] = str(data["threads"])
+    if "context_size" in data:
+        cfg["CONTEXT_SIZE"] = str(data["context_size"])
+    if "batch_size" in data:
+        cfg["BATCH_SIZE"] = str(data["batch_size"])
+    if "ubatch_size" in data:
+        cfg["UBATCH_SIZE"] = str(data["ubatch_size"])
+    if "gpu_layers" in data:
+        cfg["GPU_LAYERS"] = str(data["gpu_layers"])
+    if "flash_attention" in data:
+        cfg["FLASH_ATTENTION"] = "on" if data["flash_attention"] else "off"
+    if "ngram_spec" in data:
+        cfg["NGRAM_SPEC"] = "true" if data["ngram_spec"] else "false"
+    if "ngram_draft" in data:
+        cfg["NGRAM_DRAFT"] = str(data["ngram_draft"])
+
+    with open(config_path, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+    # Restart engine with new config so changes take effect immediately
+    llm_service.stop_engine()
+    llm_service.start_engine()
+
+    return {"success": True, "message": "Engine config saved and restarted."}
+
 @router.post("/api/settings/model")
 async def set_active_model(request: Request):
     data = await request.json()

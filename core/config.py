@@ -1,26 +1,47 @@
 import os
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Determine config file path
+HOME_DIR = str(Path.home())
+ROBIT_DIR = os.path.join(HOME_DIR, ".robit")
+CONFIG_FILE = os.path.join(ROBIT_DIR, "config.json")
+
+# Load JSON config if exists
+local_config = {}
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            local_config = json.load(f)
+    except Exception as e:
+        print(f"[CONFIG] Error loading {CONFIG_FILE}: {e}")
+
+def get_config(key, default_val):
+    if key in local_config:
+        return local_config[key]
+    return os.getenv(key, default_val)
+
 # Web Server
-WEB_PORT = int(os.getenv("WEB_PORT", 8000))
+WEB_PORT = int(get_config("WEB_PORT", 8000))
 
 # Engine parameters
-GPU_MODE = os.getenv("USE_GPU", "false").lower() == "true"
-DEFAULT_MODEL = os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf"))
+GPU_MODE = str(get_config("USE_GPU", "false")).lower() == "true"
+DEFAULT_MODEL = get_config("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf"))
 LLM_HOST = "127.0.0.1"
-LLM_PORT = int(os.getenv("LLM_PORT", 8888))
-THREADS = int(os.getenv("THREADS", 4))
-CONTEXT_SIZE = os.getenv("CONTEXT_SIZE", "4096")
-BATCH_SIZE = os.getenv("BATCH_SIZE", "1024")
-UBATCH_SIZE = os.getenv("UBATCH_SIZE", "512")
-GPU_LAYERS = os.getenv("GPU_LAYERS", "99")
-GPU_PARALLEL = os.getenv("GPU_PARALLEL", "1")
-FLASH_ATTENTION = os.getenv("FLASH_ATTENTION", "on")
-KV_QUANT = os.getenv("KV_QUANT", "q4_0")
-NGRAM_SPEC = os.getenv("NGRAM_SPEC", "true").lower() == "true"
-NGRAM_DRAFT = os.getenv("NGRAM_DRAFT", "8")
+LLM_PORT = int(get_config("LLM_PORT", 8888))
+THREADS = int(get_config("THREADS", 4))
+CONTEXT_SIZE = str(get_config("CONTEXT_SIZE", "4096"))
+BATCH_SIZE = str(get_config("BATCH_SIZE", "1024"))
+UBATCH_SIZE = str(get_config("UBATCH_SIZE", "512"))
+GPU_LAYERS = str(get_config("GPU_LAYERS", "99"))
+GPU_PARALLEL = str(get_config("GPU_PARALLEL", "1"))
+FLASH_ATTENTION = str(get_config("FLASH_ATTENTION", "on"))
+KV_QUANT = str(get_config("KV_QUANT", "q4_0"))
+NGRAM_SPEC = str(get_config("NGRAM_SPEC", "true")).lower() == "true"
+NGRAM_DRAFT = str(get_config("NGRAM_DRAFT", "8"))
 
 # Persona
 DEFAULT_SYSTEM_PROMPT = """You are ROBIT, an advanced AI assistant from Rogatekno Labs with real-time internet search and web scraping capabilities.

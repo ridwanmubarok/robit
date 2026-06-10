@@ -1,0 +1,8 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SetupWizard from '../components/SetupWizard.jsx';
+---
+
+<Layout title="ROBIT Setup">
+	<SetupWizard client:only="react" onComplete={() => window.location.href = '/'} />
+</Layout>

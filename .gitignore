@@ -43,3 +43,14 @@ robbit.db
 *.tvim
 *_map.json
 *_status.json
+
+/build/
+/dist/
+*.spec
+ui/node_modules/
+ui/dist/
+ui/src-tauri/target/
+ui/src-tauri/bin/robit-backend-x86_64-unknown-linux-gnu
+ui/src-tauri/resources/backend/
+ui/src-tauri/models/*.gguf
+.robit/

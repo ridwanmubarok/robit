@@ -12,3 +12,4 @@ rich
 click
 ddgs
 rapidocr_onnxruntime
+pyinstaller

@@ -33,7 +33,27 @@ function App() {
   const [toolStatus, setToolStatus] = useState("");
   const [chatMode, setChatMode] = useState("all");
   const [systemPersona, setSystemPersona] = useState("Anda adalah ROBIT, asisten AI riset dari Rogatekno Labs. Berikan jawaban yang akurat, teknis, dan langsung ke inti (to-the-point). Gunakan konteks dokumen yang diberikan secara maksimal. Hindari penjelasan bertele-tele.");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeArea, setActiveArea] = useState('chat');
+  const [isFirstLaunch, setIsFirstLaunch] = useState(false);
+  const [isLoadingSetup, setIsLoadingSetup] = useState(true);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: "", message: "", onConfirm: null });
+
+  useEffect(() => {
+    fetch('/api/setup/status')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.is_setup) {
+            window.location.href = '/setup';
+        } else {
+            setIsLoadingSetup(false);
+            setIsFirstLaunch(false);
+        }
+      })
+      .catch(() => {
+        window.location.href = '/setup';
+      });
+  }, []);
 
   const { data: historyData } = useHistory();
   const historySessions = historyData?.sessions || {};
@@ -76,6 +96,26 @@ function App() {
       setActiveSessionId(id);
     }
   }, [historyData]);
+
+  if (isLoadingSetup) {
+    return (
+      <div className="bg-[#000000] text-neutral-300 h-screen w-screen flex flex-col items-center justify-center font-sans">
+          <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 rounded bg-zinc-100 flex items-center justify-center shadow-lg">
+                  <span className="font-mono font-bold text-[#000000] text-xl">r</span>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                  <span className="font-bold text-3xl tracking-tight text-zinc-100">robit</span>
+              </div>
+          </div>
+          <div className="flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-neutral-600 border-t-white rounded-full animate-spin"></div>
+              <span className="text-neutral-500 font-medium tracking-wide text-sm">Starting workspace...</span>
+          </div>
+      </div>
+    );
+  }
+
   const handleModelChange = (newModel) => {
       if(!newModel) return;
       changeModelMutation.mutate({ model: newModel });
@@ -385,6 +425,9 @@ function App() {
 
   return (
     <div className="bg-[#000000] text-neutral-300 h-screen w-screen overflow-hidden flex flex-col relative font-sans">
+      
+      {/* SetupWizard has been moved to /setup */}
+
       {/* Global Confirm Modal — rendered at root so it appears above everything */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
@@ -395,7 +438,7 @@ function App() {
       />
 
       {/* Model Loading Progress Overlay */}
-      {modelsData && !modelsData.is_ready && (
+      {isFirstLaunch === false && modelsData && !modelsData.is_ready && (
         <div className="absolute inset-0 z-50 bg-[#000000]/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 fade-in">
           {/* Ambient Glow behind loader */}
           <div className="absolute w-[400px] h-[400px] bg-white/10 blur-[80px] rounded-full pointer-events-none z-0"></div>
@@ -455,15 +498,13 @@ function App() {
       <div className="w-full h-full flex flex-col relative z-10 bg-transparent">
       {/* TOP HEADER BAR */}
       <header className="h-16 border-b border-neutral-600 bg-transparent flex items-center justify-between px-6 z-20 shrink-0">
-          <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-neutral-900 flex items-center justify-center border border-white/10 shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                  </svg>
+          <div className="flex items-center space-x-3">
+              <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center shadow-lg">
+                  <span className="font-mono font-bold text-[#000000] text-sm">r</span>
               </div>
-              <div>
-                  <h1 className="text-lg font-bold tracking-tight text-white">ROBIT</h1>
-                  <p className="text-[10px] text-neutral-400 font-semibold tracking-wider uppercase">Workspace</p>
+              <div className="flex items-baseline space-x-2">
+                  <span className="font-bold text-sm tracking-tight text-zinc-100">robit</span>
+                  <span className="text-[9px] uppercase font-mono tracking-wider text-neutral-500">v0.0.1</span>
               </div>
           </div>
 
