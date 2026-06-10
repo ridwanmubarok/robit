@@ -464,7 +464,7 @@ function App() {
               </div>
               <div>
                   <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">ROBIT</h1>
-                  <p className="text-[10px] text-cyan-400/80 font-semibold tracking-wider uppercase">Rogatekno AI Workspace</p>
+                  <p className="text-[10px] text-cyan-400/80 font-semibold tracking-wider uppercase">Rogatekno Workspace</p>
               </div>
           </div>
 
