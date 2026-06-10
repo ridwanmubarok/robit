@@ -13,11 +13,10 @@ from pathlib import Path
 
 router = APIRouter()
 
-# Determine the base working directory for the packaged app
-if getattr(sys, 'frozen', False):
-    APP_BASE_DIR = os.path.dirname(sys.executable)
-else:
-    APP_BASE_DIR = os.getcwd()
+# All runtime data goes to ~/.robit/ — writable, persistent across app updates
+ROBIT_DATA_DIR = os.path.join(str(Path.home()), ".robit")
+os.makedirs(ROBIT_DATA_DIR, exist_ok=True)
+APP_BASE_DIR = ROBIT_DATA_DIR
 
 # Global state for download progress
 download_state = {

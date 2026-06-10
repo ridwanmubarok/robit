@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v0.0.1)'
+        description: 'Release tag (e.g. v0.4.2)'
         required: true
-        default: 'v0.0.1'
+        default: 'v0.4.2'
 
 permissions:
   contents: write
@@ -75,6 +75,7 @@ jobs:
           pip install pyinstaller
 
       - name: Build backend
+        shell: pwsh
         run: |
           $RAPIDOCR_PATH = python -c "import rapidocr_onnxruntime, os; print(os.path.dirname(rapidocr_onnxruntime.__file__))"
           pyinstaller --noconfirm --onedir --console `
@@ -97,7 +98,7 @@ jobs:
           retention-days: 1
 
   build-backend-macos:
-    name: Backend · macOS (universal)
+    name: Backend · macOS (arm64)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -182,6 +183,21 @@ jobs:
       - name: Set backend executable permission
         run: chmod +x ui/src-tauri/resources/backend/robit-backend-x86_64-unknown-linux-gnu/robit-backend-x86_64-unknown-linux-gnu
 
+      - name: Create sidecar wrapper script
+        run: |
+          mkdir -p ui/src-tauri/bin
+          cat > ui/src-tauri/bin/robit-backend-x86_64-unknown-linux-gnu << 'WRAPPER'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          RESOURCES_DIR="$(dirname "$SCRIPT_DIR")/Resources/backend/robit-backend-x86_64-unknown-linux-gnu"
+          if [ ! -d "$RESOURCES_DIR" ]; then
+            RESOURCES_DIR="$SCRIPT_DIR/../resources/backend/robit-backend-x86_64-unknown-linux-gnu"
+          fi
+          exec "$RESOURCES_DIR/robit-backend-x86_64-unknown-linux-gnu" "$@"
+          WRAPPER
+          sed -i 's/^          //' ui/src-tauri/bin/robit-backend-x86_64-unknown-linux-gnu
+          chmod +x ui/src-tauri/bin/robit-backend-x86_64-unknown-linux-gnu
+
       - name: Build Tauri (Linux)
         working-directory: ui
         run: npm run tauri build
@@ -229,6 +245,17 @@ jobs:
         with:
           name: backend-windows-x64
           path: ui/src-tauri/resources/backend/robit-backend-x86_64-pc-windows-msvc/
+
+      - name: Create sidecar wrapper script (Windows)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ui/src-tauri/bin | Out-Null
+          # On Windows, Tauri sidecar must be an .exe — create a minimal batch launcher renamed as .exe
+          # We use a tiny compiled launcher approach: copy the actual .exe as the sidecar stub
+          # The real binary is in resources/ and invoked at runtime by lib.rs
+          Copy-Item `
+            "ui/src-tauri/resources/backend/robit-backend-x86_64-pc-windows-msvc/robit-backend-x86_64-pc-windows-msvc.exe" `
+            "ui/src-tauri/bin/robit-backend-x86_64-pc-windows-msvc.exe"
 
       - name: Build Tauri (Windows)
         working-directory: ui
@@ -283,9 +310,24 @@ jobs:
       - name: Set backend executable permission
         run: chmod +x ui/src-tauri/resources/backend/robit-backend-aarch64-apple-darwin/robit-backend-aarch64-apple-darwin
 
+      - name: Create sidecar wrapper script (macOS)
+        run: |
+          mkdir -p ui/src-tauri/bin
+          cat > ui/src-tauri/bin/robit-backend-aarch64-apple-darwin << 'WRAPPER'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          RESOURCES_DIR="$(dirname "$SCRIPT_DIR")/Resources/backend/robit-backend-aarch64-apple-darwin"
+          if [ ! -d "$RESOURCES_DIR" ]; then
+            RESOURCES_DIR="$SCRIPT_DIR/../resources/backend/robit-backend-aarch64-apple-darwin"
+          fi
+          exec "$RESOURCES_DIR/robit-backend-aarch64-apple-darwin" "$@"
+          WRAPPER
+          sed -i '' 's/^          //' ui/src-tauri/bin/robit-backend-aarch64-apple-darwin
+          chmod +x ui/src-tauri/bin/robit-backend-aarch64-apple-darwin
+
       - name: Build Tauri (macOS)
         working-directory: ui
-        run: npm run tauri build --target aarch64-apple-darwin
+        run: npm run tauri build -- --target aarch64-apple-darwin
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

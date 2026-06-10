@@ -20,29 +20,24 @@ from services import db_service
 EXT = ".exe" if os.name == "nt" else ""
 GPU_BACKEND = os.getenv("GPU_BACKEND", "vulkan").lower()
 
-# Determine base directory: when packaged with PyInstaller onedir,
-# the executable's directory is the bundle root. When running normally,
-# use the project root (parent of services/).
-if getattr(sys, 'frozen', False):
-    # Running inside PyInstaller bundle — executable is at bundle root
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    # Running normally via python main.py — use cwd
-    BASE_DIR = os.getcwd()
+# All runtime data (engine binary, models) lives in ~/.robit/
+# This is consistent whether running via python main.py or packaged Tauri app.
+from pathlib import Path as _Path
+ROBIT_DATA_DIR = os.path.join(str(_Path.home()), ".robit")
 
 if GPU_MODE:
     if GPU_BACKEND == "cuda":
-        default_dir = os.path.join(BASE_DIR, "bin-cuda")
+        default_dir = os.path.join(ROBIT_DATA_DIR, "bin-cuda")
         backend_name = "NVIDIA CUDA"
     elif GPU_BACKEND == "metal":
-        default_dir = os.path.join(BASE_DIR, "bin-metal")
+        default_dir = os.path.join(ROBIT_DATA_DIR, "bin-metal")
         backend_name = "Apple Metal"
     else:
-        default_dir = os.path.join(BASE_DIR, "bin-vulkan")
+        default_dir = os.path.join(ROBIT_DATA_DIR, "bin-vulkan")
         backend_name = "Universal Vulkan"
     ENGINE_PATH = os.getenv("GPU_ENGINE_PATH", os.path.join(default_dir, f"llama-server{EXT}"))
 else:
-    ENGINE_PATH = os.getenv("CPU_ENGINE_PATH", os.path.join(BASE_DIR, "bin", f"llama-server{EXT}"))
+    ENGINE_PATH = os.getenv("CPU_ENGINE_PATH", os.path.join(ROBIT_DATA_DIR, "bin", f"llama-server{EXT}"))
 
 class AppState:
     def __init__(self):
@@ -128,11 +123,11 @@ async def prewarm_kv_cache():
         state.status = "Ready"
 
 def start_engine():
-    model_path = db_service.get_setting("active_model", os.getenv("MODEL_PATH", os.path.join("models", "Bonsai-8B-Q1_0.gguf")))
+    model_path = db_service.get_setting("active_model", os.getenv("MODEL_PATH", os.path.join("models", "model.gguf")))
     
-    # Resolve model path relative to BASE_DIR if not absolute
+    # Resolve model path: try absolute first, then relative to ~/.robit/
     if not os.path.isabs(model_path):
-        model_path = os.path.join(BASE_DIR, model_path)
+        model_path = os.path.join(ROBIT_DATA_DIR, model_path)
     
     if not os.path.exists(ENGINE_PATH):
         err = f"Error: Engine not found at {ENGINE_PATH}"
