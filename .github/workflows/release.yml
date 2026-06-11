@@ -367,6 +367,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: "ROBIT ${{ steps.tag.outputs.tag }}"
           draft: false
+          body_path: release_body.md
           prerelease: false
           generate_release_notes: true
           body: |
