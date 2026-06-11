@@ -31,7 +31,17 @@ async def lifespan(app: FastAPI):
     print("[SYSTEM] Shutting down ROBIT Backend...")
     llm_service.stop_engine()
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="ROBIT API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include Routers
 app.include_router(chat_router.router)

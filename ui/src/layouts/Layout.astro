@@ -21,6 +21,22 @@ const { title } = Astro.props;
         <!-- Highlight.js -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
         <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+        <!-- Fetch interceptor for Tauri production -->
+        <script is:inline>
+            const originalFetch = window.fetch;
+            window.fetch = async function() {
+                let args = arguments;
+                if (typeof args[0] === 'string') {
+                    if (args[0].startsWith('/api') || args[0].startsWith('/v1')) {
+                        const isTauri = window.__TAURI_INTERNALS__ || window.__TAURI__ || window.location.protocol.startsWith('tauri');
+                        if (isTauri || window.location.port !== '4321') {
+                            args[0] = 'http://127.0.0.1:8000' + args[0];
+                        }
+                    }
+                }
+                return originalFetch.apply(this, args);
+            };
+        </script>
 	</head>
 	<body class="antialiased selection:bg-indigo-500/30">
 		<slot />
