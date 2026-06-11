@@ -109,7 +109,7 @@ jobs:
             --hidden-import "pydantic" `
             --hidden-import "uvicorn" `
             --hidden-import "fastapi" `
-            --hidden-import "sqlite3" ``
+            --hidden-import "sqlite3" `
             main.py
 
       - name: Upload Windows artifacts
