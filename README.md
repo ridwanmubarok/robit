@@ -1,6 +1,6 @@
 # ROBIT
 
-A lightweight, powerful local AI Runner suite powered by **llama.cpp**.
+A lightweight, powerful local AI workspace designed for maximum privacy and performance.
 
 ---
 
@@ -13,26 +13,15 @@ A lightweight, powerful local AI Runner suite powered by **llama.cpp**.
 
 ---
 
-## Hardware Support & Backends
-
-| Hardware | Recommended Backend | Setup Folder | Speed (Bonsai 8B) |
-| :--- | :--- | :--- | :--- |
-| **NVIDIA RTX / GTX** | **CUDA** | `bin-cuda/` | **~40+ t/s** |
-| **AMD / Intel Arc** | **Vulkan** | `bin-vulkan/` | **~18.5 t/s** |
-| **Apple M1/M2/M3** | **Metal** | `bin-metal/` | **~14.5 t/s** |
-| **Old/Basic CPU** | **CPU (1-Bit)** | `bin/` | ~2-5 t/s |
-
----
-
 ## Supported Models
 
-All models must be in **GGUF** format and placed in the `models/` directory.
+All models must be in **GGUF** format. You can import them directly from the ROBIT GUI interface.
 
 ### Recommended (High Performance)
 
 | Model | Size | VRAM | Speed (RTX 3050) | Download |
 | :--- | :--- | :--- | :--- | :--- |
-| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~42.5 t/s** | [Download]([https://huggingface.co/Rogatekno/Bonsai-8B-GGUF](https://huggingface.co/prism-ml/Bonsai-8B-gguf/tree/main)) |
+| **Bonsai 8B Q1_0** | 1.15 GB | ~1.6 GB | **~42.5 t/s** | [Download](https://huggingface.co/prism-ml/Bonsai-8B-gguf/tree/main) |
 
 ### Verified Compatibility (Fits in 8GB VRAM)
 
@@ -46,37 +35,14 @@ All models must be in **GGUF** format and placed in the `models/` directory.
 
 ---
 
-## Detailed Installation & Setup
+## Installation & Setup
 
-### 1. Environment Setup
-Make sure you have **Python 3.12.6** installed. Then, clone the repository and install the required dependencies:
-```bash
-git clone https://github.com/Rogatekno/robit.git
-cd robit
-pip install -r requirements.txt
-```
+ROBIT is now distributed as a native standalone desktop application. You no longer need to manually configure Python, `.env` files, or use the terminal!
 
-### 2. Prepare the AI Engine (llama-server)
-ROBIT uses `llama-server` as the backbone engine. You must download the version that matches your hardware from the [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases/latest):
-
-- **NVIDIA Users (CUDA):** Download `win-cuda-x64.zip`, extract, and move the files to the `bin-cuda/` folder.
-- **AMD/Intel Users (Vulkan):** Download `win-vulkan-x64.zip`, extract, and move the files to the `bin-vulkan/` folder.
-- **Apple Silicon (Metal):** Download `macos-metal-arm64.zip`, extract, and move the files to the `bin-metal/` folder.
-- **Standard CPU (AVX2):** Download `win-avx2-x64.zip`, extract, and move to the `bin/` folder.
-
-### 3. Configuration (.env)
-Copy `.env.example` to `.env` and adjust your settings:
-- **`USE_GPU=true`**: Enable hardware acceleration.
-- **`GPU_BACKEND`**: Set to `cuda`, `vulkan`, or `metal`.
-- **`MODEL_PATH`**: Point to your `.gguf` file in the `models/` directory.
-
-### 4. Launch ROBIT
-- **Windows:** Simply double-click **`ROBIT_Run_Windows.bat`**.
-- **Linux / macOS:** 
-  ```bash
-  chmod +x ROBIT_Run_Unix.sh
-  ./ROBIT_Run_Unix.sh
-  ```
+1. **Download the App:** Navigate to the [Releases](https://github.com/ridwanmubarok/robit/releases/latest) page and download the appropriate installer for your OS (`.dmg` for Mac, `.msi` for Windows, or `.AppImage`/`.deb` for Linux).
+2. **Install & Launch:** Open ROBIT on your computer.
+3. **Automated Setup:** On first launch, the app will guide you to download the AI engine (Llama.cpp, ~30 MB) automatically and prompt you to import your downloaded `.gguf` model file.
+4. **Start Chatting:** Your local AI is ready. No internet connection is required for inference, and no data is sent out.
 
 ---
 
