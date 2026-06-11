@@ -6,9 +6,13 @@ from turbovec import IdMapIndex
 from sentence_transformers import SentenceTransformer
 
 # Paths
-INDEX_FILE = "robit_docs.tvim"
-MAP_FILE = "robit_docs_map.json"
-STATUS_FILE = "robit_docs_status.json"
+from pathlib import Path
+ROBIT_DATA_DIR = os.path.join(str(Path.home()), ".robit")
+os.makedirs(ROBIT_DATA_DIR, exist_ok=True)
+
+INDEX_FILE = os.path.join(ROBIT_DATA_DIR, "robit_docs.tvim")
+MAP_FILE = os.path.join(ROBIT_DATA_DIR, "robit_docs_map.json")
+STATUS_FILE = os.path.join(ROBIT_DATA_DIR, "robit_docs_status.json")
 
 class RobitRAG:
     def __init__(self, index_file=INDEX_FILE, map_file=MAP_FILE, status_file=STATUS_FILE):
@@ -293,8 +297,8 @@ def get_codebase_rag_engine():
     global codebase_rag_engine
     if codebase_rag_engine is None:
         codebase_rag_engine = RobitRAG(
-            index_file="robit_codebase.tvim",
-            map_file="robit_codebase_map.json",
-            status_file="robit_codebase_status.json"
+            index_file=os.path.join(ROBIT_DATA_DIR, "robit_codebase.tvim"),
+            map_file=os.path.join(ROBIT_DATA_DIR, "robit_codebase_map.json"),
+            status_file=os.path.join(ROBIT_DATA_DIR, "robit_codebase_status.json")
         )
     return codebase_rag_engine

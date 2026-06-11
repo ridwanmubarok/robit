@@ -184,12 +184,12 @@ def get_engine_state():
     }
 
 def get_models_list():
-    models_dir = "models"
+    models_dir = os.path.join(ROBIT_DATA_DIR, "models")
     models = []
     if os.path.exists(models_dir):
         for f in os.listdir(models_dir):
             if f.endswith(".gguf"):
-                models.append(os.path.join(models_dir, f))
+                models.append(os.path.join("models", f))
     return models
 
 async def stream_llm_response(payload):

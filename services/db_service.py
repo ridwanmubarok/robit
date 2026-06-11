@@ -2,7 +2,11 @@ import sqlite3
 import json
 import os
 
-DB_FILE = "robit.db"
+from pathlib import Path
+
+ROBIT_DIR = os.path.join(str(Path.home()), ".robit")
+os.makedirs(ROBIT_DIR, exist_ok=True)
+DB_FILE = os.path.join(ROBIT_DIR, "robit.db")
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
