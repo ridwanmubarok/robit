@@ -385,11 +385,11 @@ jobs:
             ### Downloads
             | Platform | File | Notes |
             |---|---|---|
-            | 🐧 Linux | `.AppImage` | Universal, portable |
-            | 🐧 Linux | `.deb` | Debian/Ubuntu |
-            | 🪟 Windows | `.msi` | Recommended |
-            | 🪟 Windows | `.exe` | NSIS installer |
-            | 🍎 macOS | `.dmg` | Apple Silicon (M1/M2/M3) |
+            | Linux | `.AppImage` | Universal, portable |
+            | Linux | `.deb` | Debian/Ubuntu |
+            | Windows | `.msi` | Recommended |
+            | Windows | `.exe` | NSIS installer |
+            | Mac | `.dmg` | Apple Silicon (M1/M2/M3) |
 
             ### First Run
             The app will guide you through setup:
