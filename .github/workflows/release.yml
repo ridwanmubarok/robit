@@ -97,44 +97,7 @@ jobs:
           path: dist/robit-backend-x86_64-pc-windows-msvc/
           retention-days: 1
 
-  build-backend-macos:
-    name: Backend · macOS (arm64)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: Build backend (arm64)
-        run: |
-          RAPIDOCR_PATH=$(python3 -c "import rapidocr_onnxruntime, os; print(os.path.dirname(rapidocr_onnxruntime.__file__))")
-          pyinstaller --noconfirm --onedir --console \
-            --name "robit-backend-aarch64-apple-darwin" \
-            --add-data "core:core" \
-            --add-data "routers:routers" \
-            --add-data "services:services" \
-            --add-data "use_cases:use_cases" \
-            --add-data "$RAPIDOCR_PATH:rapidocr_onnxruntime" \
-            --hidden-import "uvicorn" \
-            --hidden-import "fastapi" \
-            --hidden-import "sqlite3" \
-            main.py
-
-      - name: Upload backend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-macos-arm64
-          path: dist/robit-backend-aarch64-apple-darwin/
-          retention-days: 1
 
   # ─────────────────────────────────────────────
   # STEP 2: Build Tauri app for each OS
@@ -273,85 +236,14 @@ jobs:
             ui/src-tauri/target/release/bundle/nsis/*.exe
           retention-days: 1
 
-  build-tauri-macos:
-    name: Tauri · macOS (.dmg)
-    needs: build-backend-macos
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
-      - name: Setup Rust (with Apple Silicon target)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ui/src-tauri
-
-      - name: Install Node dependencies
-        working-directory: ui
-        run: npm ci
-
-      - name: Download backend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-macos-arm64
-          path: ui/src-tauri/resources/backend/robit-backend-aarch64-apple-darwin/
-
-      - name: Set backend executable permission
-        run: chmod +x ui/src-tauri/resources/backend/robit-backend-aarch64-apple-darwin/robit-backend-aarch64-apple-darwin
-
-      - name: Create sidecar wrapper script (macOS)
-        run: |
-          mkdir -p ui/src-tauri/bin
-          cat > ui/src-tauri/bin/robit-backend-aarch64-apple-darwin << 'WRAPPER'
-          #!/bin/bash
-          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-          RESOURCES_DIR="$(dirname "$SCRIPT_DIR")/Resources/backend/robit-backend-aarch64-apple-darwin"
-          if [ ! -d "$RESOURCES_DIR" ]; then
-            RESOURCES_DIR="$SCRIPT_DIR/../resources/backend/robit-backend-aarch64-apple-darwin"
-          fi
-          exec "$RESOURCES_DIR/robit-backend-aarch64-apple-darwin" "$@"
-          WRAPPER
-          sed -i '' 's/^          //' ui/src-tauri/bin/robit-backend-aarch64-apple-darwin
-          chmod +x ui/src-tauri/bin/robit-backend-aarch64-apple-darwin
-
-      - name: Build Tauri (macOS)
-        working-directory: ui
-        run: npm run tauri build -- --target aarch64-apple-darwin
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-macos
-          path: |
-            ui/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-          retention-days: 1
 
   # ─────────────────────────────────────────────
   # STEP 3: Create GitHub Release
   # ─────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [build-tauri-linux, build-tauri-windows, build-tauri-macos]
+    needs: [build-tauri-linux, build-tauri-windows]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -395,7 +287,6 @@ jobs:
             | 🐧 Linux | `.deb` | Debian/Ubuntu |
             | 🪟 Windows | `.msi` | Recommended |
             | 🪟 Windows | `.exe` | NSIS installer |
-            | 🍎 macOS | `.dmg` | Apple Silicon (M1/M2/M3) |
 
             ### First Run
             The app will guide you through setup:
