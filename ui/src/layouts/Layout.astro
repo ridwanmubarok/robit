@@ -24,8 +24,7 @@ const { title } = Astro.props;
         <!-- Fetch interceptor for Tauri production -->
         <script is:inline>
             const originalFetch = window.fetch;
-            window.fetch = async function() {
-                let args = arguments;
+            window.fetch = async function(...args) {
                 if (typeof args[0] === 'string') {
                     if (args[0].startsWith('/api') || args[0].startsWith('/v1')) {
                         const isTauri = window.__TAURI_INTERNALS__ || window.__TAURI__ || window.location.protocol.startsWith('tauri');
