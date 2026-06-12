@@ -216,7 +216,7 @@ jobs:
 
       - name: Build Tauri (Linux)
         working-directory: ui
-        run: npm run tauri build
+        run: npm run tauri build -- --bundles deb
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -227,7 +227,6 @@ jobs:
           name: release-linux
           path: |
             ui/src-tauri/target/release/bundle/deb/*.deb
-            ui/src-tauri/target/release/bundle/appimage/*.AppImage
           retention-days: 1
 
   build-tauri-windows:
