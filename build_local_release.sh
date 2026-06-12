@@ -51,6 +51,10 @@ pyinstaller --noconfirm --onefile --console \
   --hidden-import "turbovec" \
   --hidden-import "sentence_transformers" \
   --hidden-import "bs4" \
+  --hidden-import "websockets" \
+  --hidden-import "websockets.legacy" \
+  --hidden-import "websockets.legacy.server" \
+  --collect-all "playwright" \
   --exclude-module "nvidia" \
   main.py
 

@@ -32,6 +32,10 @@ pyinstaller --noconfirm --onedir --console \
     --hidden-import "uvicorn" \
     --hidden-import "fastapi" \
     --hidden-import "sqlite3" \
+    --hidden-import "websockets" \
+    --hidden-import "websockets.legacy" \
+    --hidden-import "websockets.legacy.server" \
+    --collect-all "playwright" \
     main.py
 
 echo "Build complete. Executable is in dist/robit-backend-$TARGET"

@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 
 from core.config import WEB_PORT
 from services import db_service, llm_service
-from routers import chat_router, rag_router, system_router, setup_router, scraper_router
+from routers import chat_router, rag_router, system_router, setup_router, scraper_router, qa_router
 
 # Force UTF-8 for Windows console output
 if sys.platform == "win32":
@@ -49,6 +49,7 @@ app.include_router(rag_router.router)
 app.include_router(system_router.router)
 app.include_router(setup_router.router)
 app.include_router(scraper_router.router)
+app.include_router(qa_router.router)
 
 # Mount Frontend
 ui_dist = os.path.join(os.path.dirname(__file__), "ui", "dist")

@@ -10,14 +10,19 @@ export default defineConfig({
   // Just run: python3 robit.py serve (backend) + npm run dev (frontend) simultaneously.
   vite: {
     server: {
+      watch: {
+        ignored: ['**/src-tauri/**']
+      },
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
+          ws: true,
         },
         '/v1': {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
+          ws: true,
         },
       },
     },

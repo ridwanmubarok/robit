@@ -16,3 +16,5 @@ pyinstaller
 turbovec
 sentence-transformers
 beautifulsoup4
+playwright
+websockets
