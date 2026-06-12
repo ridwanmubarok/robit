@@ -11,6 +11,7 @@ import TranslateArea from './TranslateArea';
 import PlanningArea from './PlanningArea';
 import QAArea from './QAArea';
 import ConfirmModal from './ConfirmModal';
+import DashboardArea from './DashboardArea';
 import { useHistory, useSaveSession, useKbDocs, useToggleKBDoc, useDeleteKBDoc, useModels, useChangeModel } from '../hooks/useQueries';
 
 const queryClient = new QueryClient();
@@ -138,8 +139,8 @@ function App() {
   const handleDeleteSession = (id) => {
     setConfirmModal({
         isOpen: true,
-        title: "Hapus Obrolan",
-        message: "Yakin ingin menghapus obrolan ini? Tindakan ini tidak dapat dibatalkan.",
+        title: "Delete Chat",
+        message: "Are you sure you want to delete this chat? This action cannot be undone.",
         onConfirm: () => {
             setConfirmModal(prev => ({ ...prev, isOpen: false }));
             executeDeleteSession(id);
@@ -169,8 +170,8 @@ function App() {
   const requestDeleteSession = (id, title) => {
     setConfirmModal({
         isOpen: true,
-        title: "Hapus Sesi",
-        message: `Yakin ingin menghapus sesi "${title || 'ini'}"? Tindakan ini tidak dapat dibatalkan.`,
+        title: "Delete Session",
+        message: `Are you sure you want to delete the session "${title || 'this'}"? This action cannot be undone.`,
         onConfirm: () => {
             setConfirmModal(prev => ({ ...prev, isOpen: false }));
             executeDeleteSession(id);
@@ -537,7 +538,8 @@ function App() {
         
         <main className="flex-1 flex overflow-hidden bg-transparent relative">
           <Routes>
-            <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardArea />} />
              <Route path="/chat" element={
               <ChatArea 
                 messages={activeMessages} 

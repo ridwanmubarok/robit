@@ -142,7 +142,7 @@ const ToolResultItem = ({ part }) => {
             {isOpen && (
                 <div className="border-t border-neutral-800 bg-[#000000]/50 px-3.5 py-2.5">
                     <pre className="text-[10px] font-mono text-neutral-400 overflow-x-auto whitespace-pre-wrap max-h-48 custom-scrollbar leading-relaxed">
-                        {output || "Tidak ada output dari tool."}
+                        {output || "No output from tool."}
                     </pre>
                 </div>
             )}
@@ -442,10 +442,10 @@ export default function ChatArea({ messages, isGenerating, onSend, streamingMsg,
                             }}
                             rows="2" 
                             placeholder={
-                                chatMode === "all" ? "Tanyakan apa saja... RAG & Pencarian Web aktif." :
-                                chatMode === "rag" ? "Tanyakan tentang dokumen Anda... RAG aktif." :
-                                chatMode === "research" ? "Lakukan riset... Pencarian Web aktif." :
-                                "Ketik pesan di sini... Mode Chat Standar (tanpa tool)."
+                                chatMode === "all" ? "Ask anything... RAG & Web Search active." :
+                                chatMode === "rag" ? "Ask about your documents... RAG active." :
+                                chatMode === "research" ? "Do some research... Web Search active." :
+                                "Type a message here... Standard Chat Mode (no tools)."
                             }
                             className="w-full bg-transparent border-0 ring-0 outline-none focus:ring-0 focus:outline-none text-neutral-100 placeholder-neutral-500 px-3 py-1.5 resize-none text-sm leading-relaxed custom-scrollbar"
                             disabled={isGenerating || isExtracting}

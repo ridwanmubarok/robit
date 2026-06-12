@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmText = "Hapus", cancelText = "Batal" }) {
+export default function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmText = "Delete", cancelText = "Cancel" }) {
     if (!isOpen) return null;
 
     return (

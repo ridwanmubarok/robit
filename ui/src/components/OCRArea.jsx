@@ -80,7 +80,7 @@ export default function OCRArea() {
                 })
             });
 
-            if (!response.ok) throw new Error("Gagal memformat teks dengan AI");
+            if (!response.ok) throw new Error("Failed to format text with AI");
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
@@ -141,7 +141,7 @@ export default function OCRArea() {
                         <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Source Image</h3>
                         {imagePreview && (
                             <button onClick={() => { setImagePreview(null); setResultText(""); }} className="text-[10px] text-white hover:text-neutral-300 font-bold px-2 py-1 bg-white/10 rounded">
-                                Ganti Gambar
+                                Replace Image
                             </button>
                         )}
                     </div>
@@ -159,8 +159,8 @@ export default function OCRArea() {
                                 <div className="w-16 h-16 rounded-2xl bg-[#171717]/60 flex items-center justify-center text-neutral-400 group-hover:text-white group-hover:bg-white/10 transition-all mb-4 shadow-lg">
                                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                 </div>
-                                <h4 className="text-sm font-semibold text-neutral-200">Drag & Drop Gambar di sini</h4>
-                                <p className="text-[11px] text-neutral-500 mt-2 text-center max-w-xs">AI akan memindai gambar dan mengubahnya menjadi teks yang bisa diedit. Dukung struk, KTP, dan tulisan tangan.</p>
+                                <h4 className="text-sm font-semibold text-neutral-200">Drag & Drop Image here</h4>
+                                <p className="text-[11px] text-neutral-500 mt-2 text-center max-w-xs">AI will scan the image and convert it into editable text. Supports receipts, ID cards, and handwriting.</p>
                             </div>
                         ) : (
                             <div className="relative w-full h-full rounded-xl overflow-hidden border border-neutral-700 bg-black/50 flex items-center justify-center">
@@ -211,7 +211,7 @@ export default function OCRArea() {
                     <div className="flex-1 p-4">
                         <textarea 
                             className="w-full h-full bg-[#0a0a0a]/80 border border-[#171717] rounded-xl p-4 text-sm text-neutral-300 placeholder-neutral-600 focus:outline-none focus:border-neutral-8000 resize-none custom-scrollbar leading-relaxed"
-                            placeholder="Teks hasil scan akan muncul di sini dan bisa diedit..."
+                            placeholder="Scanned text will appear here and can be edited..."
                             value={resultText}
                             onChange={(e) => setResultText(e.target.value)}
                             readOnly={isExtracting || isFormatting}

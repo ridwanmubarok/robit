@@ -20,8 +20,33 @@ export default function PlanningArea() {
     const [indexProgress, setIndexProgress] = useState(null);
     const [isDetectingTech, setIsDetectingTech] = useState(false);
     const [status, setStatus] = useState(null); // { type: 'success'|'error', text: '' }
+    const [syncStatus, setSyncStatus] = useState(null);
     const [savingIndex, setSavingIndex] = useState(null); // index of message being saved
     const [modalConfig, setModalConfig] = useState({ isOpen: false, type: '', title: '', message: '', inputValue: '', onConfirm: null });
+
+    const checkSyncStatus = async (dirs) => {
+        if (!dirs || dirs.length === 0) {
+            setSyncStatus(null);
+            return;
+        }
+        try {
+            const res = await fetch('/api/planning/index-sync-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_dirs: dirs })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSyncStatus({
+                    total: data.total_files,
+                    indexed: data.indexed_files,
+                    is_synced: data.is_synced
+                });
+            }
+        } catch (e) {
+            console.error("Failed to check sync status:", e);
+        }
+    };
 
     const chatEndRef = useRef(null);
 
@@ -90,35 +115,46 @@ export default function PlanningArea() {
     }, [targetDirs, selectedSaveDir, filename, techStack, messages]);
 
     // Polling for indexing progress
+    const checkIndexStatus = async () => {
+        try {
+            const res = await fetch('/api/planning/index-status');
+            const data = await res.json();
+            if (data.status === 'indexing') {
+                setIndexProgress(data);
+            } else if (data.status === 'done') {
+                setIndexProgress(null);
+                setIsIndexing(false);
+                setStatus({ type: 'success', text: `Project successfully indexed: ${data.message}` });
+                checkSyncStatus(targetDirs);
+            } else if (data.status === 'error') {
+                setIndexProgress(null);
+                setIsIndexing(false);
+                setStatus({ type: 'error', text: data.message || 'Failed to index project.' });
+            } else if (data.status === 'canceled') {
+                setIndexProgress(null);
+                setIsIndexing(false);
+                setStatus({ type: 'error', text: data.message || 'Indexing canceled.' });
+            }
+        } catch (e) {
+            // ignore fetch error
+        }
+    };
+
     useEffect(() => {
         let interval;
         if (isIndexing) {
-            interval = setInterval(async () => {
-                try {
-                    const res = await fetch('/api/planning/index-status');
-                    const data = await res.json();
-                    if (data.status === 'indexing') {
-                        setIndexProgress(data);
-                    } else if (data.status === 'done') {
-                        setIndexProgress(null);
-                        setIsIndexing(false);
-                        setStatus({ type: 'success', text: `Project successfully indexed: ${data.message}` });
-                    } else if (data.status === 'error') {
-                        setIndexProgress(null);
-                        setIsIndexing(false);
-                        setStatus({ type: 'error', text: data.message || 'Failed to index project.' });
-                    } else if (data.status === 'canceled') {
-                        setIndexProgress(null);
-                        setIsIndexing(false);
-                        setStatus({ type: 'error', text: data.message || 'Indexing canceled.' });
-                    }
-                } catch (e) {
-                    // ignore fetch error
-                }
-            }, 500);
+            interval = setInterval(checkIndexStatus, 500);
+        } else {
+            checkSyncStatus(targetDirs);
         }
         return () => clearInterval(interval);
     }, [isIndexing]);
+
+    useEffect(() => {
+        if (!isIndexing) {
+            checkSyncStatus(targetDirs);
+        }
+    }, [targetDirs]);
 
     // Auto-scroll to bottom of chat
     useEffect(() => {
@@ -285,13 +321,13 @@ export default function PlanningArea() {
             const data = await res.json();
             if (data.success) {
                 setTechStack(data.tech_stack);
-                setStatus({ type: 'success', text: `Berhasil mendeteksi tech stack: ${data.tech_stack}` });
+                setStatus({ type: 'success', text: `Successfully detected tech stack: ${data.tech_stack}` });
                 setTimeout(() => setStatus(null), 3000);
             } else {
-                setStatus({ type: 'error', text: data.error || 'Gagal mendeteksi stack.' });
+                setStatus({ type: 'error', text: data.error || 'Failed to detect stack.' });
             }
         } catch (err) {
-            setStatus({ type: 'error', text: `Kesalahan deteksi stack: ${err.message}` });
+            setStatus({ type: 'error', text: `Stack detection error: ${err.message}` });
         } finally {
             setIsDetectingTech(false);
         }
@@ -591,17 +627,34 @@ export default function PlanningArea() {
                                 </button>
                             </div>
                         ) : (
-                            <button
-                                type="button"
-                                onClick={handleIndexAll}
-                                disabled={targetDirs.length === 0}
-                                className="w-full mt-3 bg-neutral-800 hover:bg-neutral-700 text-white border border-white/10 rounded-xl py-2 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17.5M8 5h8M8 19h8"></path>
-                                </svg>
-                                {status?.type === 'error' && status?.text?.includes('cancel') ? 'Retry Indexing' : 'Index Codebase (RAG)'}
-                            </button>
+                            <div className="mt-3">
+                                {syncStatus && (
+                                    <div className={`text-[10px] font-bold mb-2 flex items-center gap-1.5 ${syncStatus.is_synced ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                        {syncStatus.is_synced ? (
+                                            <>
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                                Synced ({syncStatus.indexed} files)
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                Out of sync ({syncStatus.indexed} / {syncStatus.total} files)
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleIndexAll}
+                                    disabled={targetDirs.length === 0}
+                                    className={`w-full bg-neutral-800 hover:bg-neutral-700 text-white border border-white/10 rounded-xl py-2 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${syncStatus && !syncStatus.is_synced ? 'ring-1 ring-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-100 border-amber-500/20' : ''}`}
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17.5M8 5h8M8 19h8"></path>
+                                    </svg>
+                                    {syncStatus && !syncStatus.is_synced ? 'Resync & Index' : 'Index Codebase'}
+                                </button>
+                            </div>
                         )}
                     </div>
 

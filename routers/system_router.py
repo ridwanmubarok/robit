@@ -1,3 +1,4 @@
+from pathlib import Path
 from fastapi import APIRouter, Request, File, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 import time
@@ -547,6 +548,51 @@ async def index_codebase_status():
     global indexing_state
     return indexing_state
 
+@router.post("/api/planning/index-sync-status")
+async def index_sync_status(request: Request):
+    body = await request.json()
+    target_dirs = body.get("target_dirs", [])
+    
+    workspace_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
+    
+    try:
+        from services.rag_service import get_codebase_rag_engine
+        db = get_codebase_rag_engine()
+        
+        # Get all files on disk
+        disk_files = set()
+        for tdir in target_dirs:
+            tdir = tdir.strip()
+            if not tdir:
+                continue
+            if tdir == ".":
+                resolved_dir = workspace_root
+            elif os.path.isabs(tdir):
+                resolved_dir = os.path.abspath(tdir)
+            else:
+                resolved_dir = os.path.abspath(os.path.join(workspace_root, tdir))
+                
+            files = db.get_workspace_files(resolved_dir)
+            disk_files.update(files)
+            
+        # Get all indexed files
+        indexed_files = set(doc["name"] for doc in db.list_documents())
+        
+        # We assume if the sets of filenames match exactly, we are synced.
+        # This is a naive heuristic (doesn't check mtime), but good enough for new/deleted files.
+        unindexed = disk_files - indexed_files
+        is_synced = len(unindexed) == 0 and len(indexed_files - disk_files) == 0
+        
+        return {
+            "success": True, 
+            "total_files": len(disk_files), 
+            "indexed_files": len(indexed_files), 
+            "unindexed_count": len(unindexed),
+            "is_synced": is_synced
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @router.post("/api/planning/index-cancel")
 async def index_codebase_cancel():
     global indexing_state
@@ -949,3 +995,70 @@ async def delete_planning_project_endpoint(project_id: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+
+@router.get("/api/system/dashboard-stats")
+async def get_dashboard_stats():
+    base_dir = os.path.join(str(Path.home()), ".robit")
+    
+    # 1. Total indexed files
+    total_indexed = 0
+    for status_file in ["robit_codebase_status.json", "robit_kb_status.json"]:
+        p = os.path.join(base_dir, status_file)
+        if os.path.exists(p):
+            try:
+                with open(p, "r") as f:
+                    data = json.load(f)
+                    total_indexed += len([k for k, v in data.items() if v.get("active", True)])
+            except Exception:
+                pass
+                
+    # 2. Model Size
+    models_dir = os.path.join(base_dir, "models")
+    total_model_bytes = 0
+    total_models = 0
+    if os.path.exists(models_dir):
+        for root, _, files in os.walk(models_dir):
+            for file in files:
+                if file.endswith(".gguf"):
+                    total_model_bytes += os.path.getsize(os.path.join(root, file))
+                    total_models += 1
+                    
+    # 3. Database Size
+    db_bytes = 0
+    db_files = [
+        "robit.db", 
+        "robit_codebase.tvim", "robit_codebase_map.json", "robit_codebase_status.json",
+        "robit_kb.tvim", "robit_kb_map.json", "robit_kb_status.json",
+        "history.json", "settings.json", "projects.json"
+    ]
+    for db_file in db_files:
+        p = os.path.join(base_dir, db_file)
+        if os.path.exists(p):
+            db_bytes += os.path.getsize(p)
+            
+    # Format bytes to MB/GB
+    def format_size(size_bytes):
+        if size_bytes == 0:
+            return "0 B"
+        size_name = ("B", "KB", "MB", "GB", "TB")
+        import math
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return f"{s} {size_name[i]}"
+        
+    import psutil
+    ram_gb = round(psutil.virtual_memory().used / (1024**3), 1)
+    ram_total = round(psutil.virtual_memory().total / (1024**3), 1)
+
+    return {
+        "success": True,
+        "indexed_files": total_indexed,
+        "model_size_raw": total_model_bytes,
+        "model_size": format_size(total_model_bytes),
+        "total_models": total_models,
+        "db_size_raw": db_bytes,
+        "db_size": format_size(db_bytes),
+        "ram_used_gb": ram_gb,
+        "ram_total_gb": ram_total
+    }

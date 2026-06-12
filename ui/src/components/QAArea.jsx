@@ -28,10 +28,18 @@ export default function QAArea() {
         if (activeScenario) {
             setCode(activeScenario.script_code || "");
             setPrompt("");
-            setLogs([]);
+            const storedLogs = localStorage.getItem(`qa_logs_${activeScenario.id}`);
+            setLogs(storedLogs ? JSON.parse(storedLogs) : []);
             setScreenshot(null);
         }
     }, [activeScenario]);
+
+    // Persist logs to localStorage
+    useEffect(() => {
+        if (activeScenario) {
+            localStorage.setItem(`qa_logs_${activeScenario.id}`, JSON.stringify(logs));
+        }
+    }, [logs, activeScenario]);
 
     const saveScenarioData = async (updates) => {
         if (!activeScenario) return;
@@ -47,7 +55,6 @@ export default function QAArea() {
     const handleGenerate = async () => {
         if (!prompt || !activeScenario) return;
         setIsGenerating(true);
-        setLogs([]);
         setScreenshot(null);
         
         const newMsg = { role: "user", content: prompt };
@@ -60,7 +67,9 @@ export default function QAArea() {
                 body: JSON.stringify({ 
                     prompt: prompt,
                     messages: messages,
-                    target_url: activeProject?.target_url
+                    target_url: activeProject?.target_url,
+                    project_id: activeProject?.id,
+                    persist_session: activeProject?.persist_session === 1 || activeProject?.persist_session === true
                 })
             });
             const data = await res.json();
@@ -87,7 +96,7 @@ export default function QAArea() {
         
         setIsRunning(true);
         saveScenarioData({ status: "running" });
-        setLogs(["[System] Starting Playwright execution..."]);
+        setLogs(prev => [...prev, "[System] Starting Playwright execution..."]);
         setScreenshot(null);
         
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -182,17 +191,33 @@ export default function QAArea() {
                         <div className="flex flex-col gap-4 mb-4">
                             {/* Chat History Panel */}
                             {activeScenario.messages && activeScenario.messages.length > 0 && (
-                                <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-4 flex flex-col gap-3 max-h-48 overflow-y-auto custom-scrollbar">
-                                    {activeScenario.messages.map((msg, idx) => (
-                                        <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                            <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-1 px-1">
-                                                {msg.role === 'user' ? 'You' : 'AI'}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex justify-between items-center px-1">
+                                        <span className="text-[11px] text-neutral-500 font-bold uppercase tracking-widest">Prompt History</span>
+                                        <button 
+                                            onClick={async () => {
+                                                await saveScenarioData({ messages: [] });
+                                                setActiveScenario({ ...activeScenario, messages: [] });
+                                            }}
+                                            className="text-[10px] text-neutral-400 hover:text-red-400 transition-colors flex items-center gap-1"
+                                            title="Clear prompt history"
+                                        >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            Clear
+                                        </button>
+                                    </div>
+                                    <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-4 flex flex-col gap-3 max-h-48 overflow-y-auto custom-scrollbar">
+                                        {activeScenario.messages.map((msg, idx) => (
+                                            <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                                <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-1 px-1">
+                                                    {msg.role === 'user' ? 'You' : 'AI'}
+                                                </div>
+                                                <div className={`px-3 py-2 rounded-xl text-sm max-w-[80%] ${msg.role === 'user' ? 'bg-emerald-600/20 text-emerald-100 border border-emerald-500/30' : 'bg-black text-neutral-300 border border-neutral-800'}`}>
+                                                    {msg.content}
+                                                </div>
                                             </div>
-                                            <div className={`px-3 py-2 rounded-xl text-sm max-w-[80%] ${msg.role === 'user' ? 'bg-emerald-600/20 text-emerald-100 border border-emerald-500/30' : 'bg-black text-neutral-300 border border-neutral-800'}`}>
-                                                {msg.content}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
@@ -278,7 +303,14 @@ export default function QAArea() {
                                 {/* Logs Area */}
                                 <div className="h-48 flex flex-col bg-[#000000] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl shrink-0">
                                     <div className="bg-[#0a0a0a]/60 px-4 py-2 border-b border-neutral-800 flex items-center justify-between shrink-0">
-                                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest font-mono">Execution Logs</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest font-mono">Execution Logs</span>
+                                            {logs.length > 0 && (
+                                                <button onClick={() => setLogs([])} className="text-[9px] font-mono font-bold text-neutral-400 hover:text-rose-400 px-1.5 py-0.5 rounded transition-colors uppercase tracking-widest">
+                                                    Clear Logs
+                                                </button>
+                                            )}
+                                        </div>
                                         {isRunning && (
                                             <span className="flex items-center gap-1.5">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>

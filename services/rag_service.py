@@ -145,21 +145,14 @@ class RobitRAG:
             
         return f"Successfully ingested {os.path.basename(filepath)}. Added {len(chunks)} chunks to vector database."
 
-    def ingest_workspace(self, workspace_path, progress_callback=None, check_cancel=None):
+    def get_workspace_files(self, workspace_path):
         if not os.path.isdir(workspace_path):
-            return f"Error: Directory {workspace_path} not found."
+            return []
             
-        print(f"[RAG] Scanning workspace: {workspace_path}")
-        if progress_callback: progress_callback(0, 1, "Scanning workspace...")
-        
         allowed_exts = {".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".md", ".json", ".go", ".rs", ".cpp", ".c", ".h", ".java"}
         ignore_dirs = {".git", "node_modules", "venv", ".venv", "dist", "build", "__pycache__", ".astro", ".next"}
         ignore_dirs_lower = {d.lower() for d in ignore_dirs}
-        
-        import time
-        current_id = int(time.time() * 1000)
-        
-        # First pass: count files
+
         files_to_process = []
         for root, dirs, files in os.walk(workspace_path):
             dirs[:] = [d for d in dirs if d.lower() not in ignore_dirs_lower]
@@ -172,7 +165,21 @@ class RobitRAG:
                 ext = os.path.splitext(file)[1].lower()
                 if ext in allowed_exts:
                     files_to_process.append(os.path.join(root, file))
-                    
+        return files_to_process
+
+    def ingest_workspace(self, workspace_path, progress_callback=None, check_cancel=None):
+        if not os.path.isdir(workspace_path):
+            return f"Error: Directory {workspace_path} not found."
+            
+        print(f"[RAG] Scanning workspace: {workspace_path}")
+        if progress_callback: progress_callback(0, 1, "Scanning workspace...")
+        
+        import time
+        current_id = int(time.time() * 1000)
+        
+        # First pass: count files
+        files_to_process = self.get_workspace_files(workspace_path)
+        
         total_files_to_process = len(files_to_process)
         if progress_callback: progress_callback(0, total_files_to_process, f"Menemukan {total_files_to_process} file...")
         

@@ -53,19 +53,24 @@ async def get_hardware_info():
     os_name = f"{platform.system()} {platform.machine()}"
     ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
     
-    gpu_info = "Unknown GPU"
+    gpu_info = "Generic GPU"
     recommended_engine = "CPU"
     
     if platform.system() == "Windows":
         recommended_engine = "Vulkan"
+        gpu_info = "Windows Vulkan GPU"
         if has_nvidia_gpu():
             recommended_engine = "CUDA"
+            gpu_info = "NVIDIA GPU"
     elif platform.system() == "Darwin":
         recommended_engine = "Metal"
+        gpu_info = "Apple Silicon / Mac GPU"
     elif platform.system() == "Linux":
         recommended_engine = "Vulkan"
+        gpu_info = "Linux Vulkan GPU"
         if has_nvidia_gpu():
             recommended_engine = "CUDA"
+            gpu_info = "NVIDIA GPU"
         
     free_ram_gb = round(psutil.virtual_memory().available / (1024**3), 1)
 

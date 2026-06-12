@@ -58,25 +58,25 @@ async def clear_project_state(project_id: str):
 async def get_scenarios(project_id: str):
     return db_service.get_qa_scenarios(project_id)
 
-def extract_dom(url: str, state_content: str = None) -> str:
+async def extract_dom(url: str, state_content: str = None) -> str:
     print(f"Extracting DOM for {url}...", flush=True)
     try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch(executable_path='/usr/bin/google-chrome', headless=True)
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(executable_path='/usr/bin/google-chrome', headless=True)
             if state_content:
                 with open("temp_extract_state.json", "w") as f:
                     f.write(state_content)
-                context = browser.new_context(storage_state="temp_extract_state.json")
+                context = await browser.new_context(storage_state="temp_extract_state.json")
                 os.remove("temp_extract_state.json")
             else:
-                context = browser.new_context()
+                context = await browser.new_context()
             
-            page = context.new_page()
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
-            page.wait_for_timeout(1500)
+            page = await context.new_page()
+            await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_timeout(1500)
             
-            elements = page.evaluate('''() => {
+            elements = await page.evaluate('''() => {
                 const els = Array.from(document.querySelectorAll('button, input, a, select, textarea'));
                 return els.map(e => {
                     const tag = e.tagName.toLowerCase();
@@ -92,7 +92,7 @@ def extract_dom(url: str, state_content: str = None) -> str:
                 }).join('\\n');
             }''')
             
-            browser.close()
+            await browser.close()
             return elements
     except Exception as e:
         print(f"Error extracting DOM: {e}")
@@ -117,7 +117,7 @@ async def generate_qa_script(req: GenerateRequest):
     if req.project_id and req.persist_session:
         state_content = db_service.get_project_state(req.project_id)
         
-    extracted_dom = extract_dom(start_url, state_content)
+    extracted_dom = await extract_dom(start_url, state_content)
     dom_context = f"\n\nHere are the interactive elements currently on the page:\n{extracted_dom}\n\nUse these exact attributes to write accurate Playwright locators." if extracted_dom else ""
 
     system_prompt = f"""You are an expert QA Automation engineer. Write a Python script using Playwright's sync API.
@@ -129,11 +129,15 @@ from playwright.sync_api import sync_playwright
 
 2. Initialize browser exactly like this:
 import os
+from playwright.sync_api import sync_playwright
+
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path='/usr/bin/google-chrome', headless=False, slow_mo=500)
     state_file = 'temp_qa_state.json'
     context = browser.new_context(storage_state=state_file if os.path.exists(state_file) else None)
     page = context.new_page()
+    # ALWAYS use domcontentloaded to avoid 30s timeout on slow external scripts
+    page.goto('{start_url}', timeout=60000, wait_until='domcontentloaded')
     page.add_init_script('''
     const box = document.createElement('div');
     box.style.position = 'absolute';
@@ -156,19 +160,24 @@ with sync_playwright() as p:
    - For passwords: `page.locator('input[type="password"], input[name="password"]').first.fill('...')`
    - For submit buttons: `page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Masuk"), button:has-text("Sign In"), input[type="submit"]').first.click()`
 
-4. After EVERY major action (click, type, navigate, wait), add this exact code:
+4. NEVER use `wait_for_selector(...).first`. `wait_for_selector` returns an ElementHandle which does not have a `.first` attribute. ALWAYS use `page.locator(...)` which automatically waits.
+
+5. After EVERY major action (click, type, navigate, wait), add this exact code:
     page.screenshot(path="qa_preview.png")
     print("---SCREENSHOT_UPDATED---", flush=True)
 
-5. Print meaningful logs using:
+6. Print meaningful logs using:
     print("LOG: Action performed...", flush=True)
 
-6. Save state and close the browser at the end:
+7. Save state and close the browser at the end:
+    page.wait_for_timeout(5000) # ALWAYS wait for network requests (like login) to complete before saving state!
+    page.screenshot(path="qa_preview.png")
+    print("---SCREENSHOT_UPDATED---", flush=True)
     context.storage_state(path=state_file)
     context.close()
     browser.close()
 
-7. Do NOT include any markdown formatting (like ```python) or explanation, output ONLY the raw Python code.
+8. Do NOT include any markdown formatting (like ```python) or explanation, output ONLY the raw Python code.
 """
     
     # Use the existing LLM service to generate code
@@ -176,7 +185,8 @@ with sync_playwright() as p:
     
     if req.messages:
         for m in req.messages:
-            messages.append({"role": m["role"], "content": m["content"]})
+            if m["role"] != "assistant":
+                messages.append({"role": m["role"], "content": m["content"]})
     else:
         messages.append({"role": "user", "content": req.prompt})
     
@@ -218,6 +228,8 @@ async def qa_websocket(websocket: WebSocket):
         data = await websocket.receive_text()
         req = json.loads(data)
         script_code = req.get("code", "")
+        # Hot-patch AI hallucination where it chains .first on wait_for_selector
+        script_code = script_code.replace("wait_for_selector", "locator")
         project_id = req.get("project_id", "")
         
         script_path = "temp_qa_script.py"

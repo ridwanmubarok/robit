@@ -58,10 +58,10 @@ export default function TranslateArea() {
                 setTranslatedText(data.translation);
                 setReplies(data.replies || []);
             } else {
-                setError(data.error || "Gagal menerjemahkan teks.");
+                setError(data.error || "Failed to translate text.");
             }
         } catch(err) {
-            setError("Gagal menghubungi server LLM.");
+            setError("Failed to connect to LLM server.");
             console.error(err);
         } finally {
             setIsTranslating(false);
@@ -94,7 +94,7 @@ export default function TranslateArea() {
             <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
                 <div>
                     <h2 className="text-xl font-bold text-white tracking-tight">AI Translate</h2>
-                    <p className="text-xs text-neutral-400">Terjemahkan pesan secara cerdas dan dapatkan saran balasan otomatis.</p>
+                    <p className="text-xs text-neutral-400">Intelligently translate messages and get automatic reply suggestions.</p>
                 </div>
             </div>
 
@@ -121,7 +121,7 @@ export default function TranslateArea() {
                     <textarea
                         value={sourceText}
                         onChange={(e) => setSourceText(e.target.value)}
-                        placeholder="Ketik atau tempel teks di sini untuk diterjemahkan..."
+                        placeholder="Type or paste text here to translate..."
                         rows="6"
                         className="w-full bg-transparent text-sm text-neutral-100 placeholder-neutral-500 resize-none outline-none focus:outline-none custom-scrollbar leading-relaxed"
                     ></textarea>
@@ -133,7 +133,7 @@ export default function TranslateArea() {
                                 onClick={() => setSourceText("")} 
                                 className="text-neutral-400 hover:text-rose-400 font-semibold transition-colors"
                             >
-                                Hapus
+                                Clear
                             </button>
                         )}
                     </div>
@@ -210,7 +210,7 @@ export default function TranslateArea() {
                     disabled={isTranslating || !sourceText.trim()}
                     className=" bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:grayscale text-white px-8 py-3 rounded-2xl text-sm font-bold flex items-center gap-2.5 shadow-lg shadow-white/10 active:scale-[0.98] transition-all"
                 >
-                    {isTranslating ? "Menerjemahkan..." : "Terjemahkan Sekarang"}
+                    {isTranslating ? "Translating..." : "Translate Now"}
                     <svg className={`w-4 h-4 ${isTranslating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
                     </svg>

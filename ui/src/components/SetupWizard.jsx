@@ -172,7 +172,7 @@ export default function SetupWizard({ onComplete }) {
                 <div className="flex justify-between"><span className="text-neutral-500">RAM:</span> <span className="font-mono text-white">{hardware.ram}</span></div>
                 <div className="flex justify-between"><span className="text-neutral-500">GPU:</span> <span className="font-mono text-white">{hardware.gpu}</span></div>
                 <div className="mt-4 p-3 bg-[#111111] rounded-lg border border-neutral-700">
-                  <p className="text-sm mb-3">Based on your hardware, we recommend the <strong>{hardware.recommendedEngine}</strong> engine.</p>
+                  <p className="text-sm mb-3">Based on your detected hardware <strong>({hardware.gpu})</strong>, we recommend the <strong>{hardware.recommendedEngine}</strong> engine.</p>
                   <label className="text-xs text-neutral-400 block mb-1">Select Driver:</label>
                   <select 
                     value={selectedEngine} 

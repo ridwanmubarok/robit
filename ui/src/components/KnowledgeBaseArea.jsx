@@ -97,11 +97,11 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white tracking-tight">RAG Knowledge Base</h2>
-          <p className="text-xs text-neutral-400 mt-0.5">Unggah dokumen yang akan digunakan ROBIT sebagai sumber pengetahuan.</p>
+          <p className="text-xs text-neutral-400 mt-0.5">Upload documents for ROBIT to use as a knowledge source.</p>
         </div>
         <div className="bg-white/10 border border-white/20 px-3 py-1.5 rounded-lg text-xs text-white font-semibold flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-white400 animate-pulse"></span>
-          {kbDocs.filter(d => d.active).length} / {kbDocs.length} Dokumen Aktif
+          {kbDocs.filter(d => d.active).length} / {kbDocs.length} Active Documents
         </div>
       </div>
 
@@ -137,7 +137,7 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
             {dragActive ? 'Lepas file di sini' : 'Klik atau Seret File'}
           </h4>
           <p className="text-[11px] text-neutral-500 mt-1.5">
-            Pilih banyak file sekaligus — PDF, TXT, MD, JSON, CSV, kode
+            Select multiple files at once — PDF, TXT, MD, JSON, CSV, code
           </p>
           <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
             {['PDF', 'TXT', 'MD', 'JSON', 'CSV', 'PY', 'JS', 'TS'].map(ext => (
@@ -212,7 +212,7 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
       {/* Documents Table */}
       <div className="bg-[#0a0a0a]/40 border border-[#171717] rounded-2xl overflow-hidden flex-1 flex flex-col">
         <div className="px-5 py-4 border-b border-[#171717] flex items-center justify-between shrink-0">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Semua Dokumen Terdaftar</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-300">All Registered Documents</h3>
           <span className="text-[10px] text-neutral-500">Sinkronisasi otomatis dengan TurboVec DB</span>
         </div>
         <div className="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar">
@@ -234,7 +234,7 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
                       <svg className="w-10 h-10 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                       </svg>
-                      <span className="text-sm">Belum ada dokumen. Unggah file di atas.</span>
+                      <span className="text-sm">No documents yet. Upload files above.</span>
                     </div>
                   </td>
                 </tr>
@@ -273,13 +273,13 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
                         <button
                           onClick={() => setConfirmModal({
                             isOpen: true,
-                            title: 'Hapus Dokumen',
-                            message: `Yakin ingin menghapus "${doc.filename}" dari knowledge base?`,
+                            title: 'Delete Document',
+                            message: `Are you sure you want to delete "${doc.filename}" from the knowledge base?`,
                             onConfirm: () => { onDeleteKBDoc(doc.filename); setConfirmModal({ isOpen: false }); }
                           })}
                           className="text-xs text-neutral-500 hover:text-rose-400 font-semibold transition-colors group-hover:text-rose-400/60"
                         >
-                          Hapus
+                          Delete
                         </button>
                       </td>
                     </tr>
