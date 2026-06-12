@@ -3,6 +3,15 @@ use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[tauri::command]
+fn read_backend_log(app_handle: tauri::AppHandle) -> String {
+    let mut log_dir = app_handle.path().home_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    log_dir.push(".robit");
+    let log_file_path = log_dir.join("backend.log");
+    std::fs::read_to_string(log_file_path).unwrap_or_else(|_| "".to_string())
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_store::Builder::new().build())
@@ -58,6 +67,7 @@ pub fn run() {
       }
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![read_backend_log])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

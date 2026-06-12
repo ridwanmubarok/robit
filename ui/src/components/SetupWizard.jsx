@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function SetupWizard({ onComplete }) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [hardware, setHardware] = useState(null);
+  const [serverLogs, setServerLogs] = useState('');
+  const logsEndRef = useRef(null);
   
   // Download states
   const [engineState, setEngineState] = useState({ status: 'idle', progress: 0, text: '' });
@@ -12,24 +15,45 @@ export default function SetupWizard({ onComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
-    // Fetch hardware detection
-    const fetchHardware = () => {
-      fetch('/api/setup/hardware')
-        .then(res => res.json())
-        .then(data => {
+    if (step === 0) {
+      const isTauri = window.__TAURI_INTERNALS__ || window.__TAURI__ || window.location.protocol.startsWith('tauri');
+      let isChecking = false;
+
+      const checkServer = () => {
+        if (isChecking) return;
+        isChecking = true;
+        fetch('/api/setup/hardware')
+          .then(res => res.json())
+          .then(data => {
             if(data.success) {
-                setHardware(data);
-            } else {
-                throw new Error("Invalid format");
+              setHardware(data);
+              setStep(1);
             }
-        })
-        .catch(err => {
-            console.error("Hardware detection failed, retrying in 2s...", err);
-            setTimeout(fetchHardware, 2000);
-        });
-    };
-    fetchHardware();
-      
+          })
+          .catch(err => {
+            if (isTauri) {
+               invoke('read_backend_log')
+                 .then(logs => setServerLogs(logs))
+                 .catch(() => {});
+            }
+          })
+          .finally(() => {
+            isChecking = false;
+          });
+      };
+      checkServer();
+      const interval = setInterval(checkServer, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [serverLogs]);
+
+  useEffect(() => {
     // Global poll for downloads/imports
     const interval = setInterval(() => {
       fetch('/api/setup/download-status')
@@ -119,15 +143,31 @@ export default function SetupWizard({ onComplete }) {
           </div>
         </div>
 
+        {step === 0 && (
+          <div className="space-y-6 animate-fade-in">
+            <h2 className="text-xl font-semibold text-white border-b border-neutral-800 pb-2">Backend Initialization</h2>
+            <div className="flex items-center gap-3 text-neutral-400">
+              <div className="w-5 h-5 border-2 border-neutral-600 border-t-white rounded-full animate-spin"></div>
+              Waiting for local server to be ready...
+            </div>
+            
+            <div className="mt-4 bg-[#050505] border border-neutral-800 rounded-xl overflow-hidden shadow-inner">
+              <div className="bg-neutral-900 px-4 py-2 border-b border-neutral-800 text-xs font-mono text-neutral-500 uppercase tracking-wider flex justify-between">
+                <span>Server Logs</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> polling</span>
+              </div>
+              <div className="p-4 h-48 overflow-y-auto font-mono text-[10px] text-green-400 whitespace-pre-wrap leading-relaxed">
+                {serverLogs || "Waiting for logs..."}
+                <div ref={logsEndRef} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {step === 1 && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-xl font-semibold text-white border-b border-neutral-800 pb-2">Hardware Detection</h2>
-            {!hardware ? (
-              <div className="flex items-center gap-3 text-neutral-400">
-                <div className="w-5 h-5 border-2 border-neutral-600 border-t-white rounded-full animate-spin"></div>
-                Analyzing your system...
-              </div>
-            ) : (
+            {hardware && (
               <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
                 <div className="flex justify-between"><span className="text-neutral-500">OS:</span> <span className="font-mono text-white">{hardware.os}</span></div>
                 <div className="flex justify-between"><span className="text-neutral-500">RAM:</span> <span className="font-mono text-white">{hardware.ram}</span></div>
