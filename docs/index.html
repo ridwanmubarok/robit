@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robit — Native Local AI Workspace & Productivity Engine</title>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Robit is an ultra-lightweight, native open-source desktop application that transforms your computer into a high-octane AI productivity environment.">
+    <meta name="keywords" content="Robit, Local AI, Llama, GGUF, AI Workspace, Open Source AI, Productivity, Offline AI, ChatGPT alternative">
+    <meta name="author" content="Ridwan Mubarok">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://github.com/ridwanmubarok/robit">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://github.com/ridwanmubarok/robit">
+    <meta property="og:title" content="Robit — Native Local AI Workspace">
+    <meta property="og:description" content="Your private local AI workspace for peak productivity. Run powerful GGUF models completely offline with zero configuration and zero cloud data leaks.">
+    <meta property="og:image" content="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://github.com/ridwanmubarok/robit">
+    <meta property="twitter:title" content="Robit — Native Local AI Workspace">
+    <meta property="twitter:description" content="Your private local AI workspace for peak productivity. Run powerful GGUF models completely offline.">
+    <meta property="twitter:image" content="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: JetBrains Mono & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            bg: '#09090b',       // Deepest dark (zinc-950)
+                            panel: '#121214',    // Elevated card/panel hybrid
+                            surface: '#18181b',  // Subtle background (zinc-900)
+                            border: '#27272a',   // Elegant border (zinc-800)
+                            borderLight: '#3f3f46', // Hover border (zinc-700)
+                            muted: '#a1a1aa',    // Muted text (zinc-400)
+                            subtle: '#71717a'    // Deeper muted text (zinc-500)
+                        }
+                    },
+                    boxShadow: {
+                        'premium': '0 4px 30px rgba(0, 0, 0, 0.6)',
+                        'border-glow': '0 0 1px 1px rgba(255, 255, 255, 0.05) inset',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #09090b;
+            color: #f4f4f5;
+        }
+        /* Custom clean scrollbars resembling modern desktop apps */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46;
+        }
+        /* Cursor typing animation */
+        .cursor-blink::after {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 15px;
+            background-color: #f4f4f5;
+            margin-left: 4px;
+            vertical-align: middle;
+            animation: blink 0.8s step-end infinite;
+        }
+        @keyframes blink {
+            from, to { background-color: transparent }
+            50% { background-color: #f4f4f5; }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased overflow-x-hidden">
+
+    <!-- Toast Notification for Clipboard -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-10 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-zinc-900 border border-brand-border text-zinc-100 px-4 py-3 rounded-md shadow-premium flex items-center space-x-3">
+            <span class="text-zinc-400"><i class="fa-solid fa-check text-xs"></i></span>
+            <span id="toast-msg" class="text-xs font-mono">Copied to clipboard</span>
+        </div>
+    </div>
+
+    <!-- Enterprise Minimal Navigation Bar -->
+    <nav class="fixed top-0 left-0 w-full z-40 backdrop-blur-md bg-brand-bg/85 border-b border-brand-border transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-14">
+                <!-- Logo & Brand identity -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center">
+                        <span class="font-mono font-bold text-brand-bg text-sm">r</span>
+                    </div>
+                    <div class="flex items-baseline space-x-2">
+                        <span class="font-bold text-sm tracking-tight text-zinc-100">robit</span>
+                        <span class="text-[9px] uppercase font-mono tracking-wider text-brand-subtle">v0.0.1</span>
+                    </div>
+                </div>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="#features" class="text-brand-muted hover:text-zinc-100 transition duration-150 text-xs font-medium">Workspace Benefits</a>
+                    <a href="#hardware" class="text-brand-muted hover:text-zinc-100 transition duration-150 text-xs font-medium">Memory Planner</a>
+                    <a href="#docs" class="text-brand-muted hover:text-zinc-100 transition duration-150 text-xs font-medium">Documentation</a>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-3">
+                    <a href="https://github.com/ridwanmubarok/robit" target="_blank" class="hidden sm:flex items-center space-x-2 text-brand-muted hover:text-zinc-100 transition duration-150 text-xs">
+                        <i class="fa-brands fa-github text-sm"></i>
+                        <span class="font-mono">GitHub</span>
+                    </a>
+                    <a href="#docs" class="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-brand-bg font-medium rounded text-xs transition">
+                        Open Workspace
+                    </a>
+                    <!-- Mobile Menu Button -->
+                    <button id="mobile-menu-btn" class="md:hidden text-brand-muted hover:text-zinc-100 focus:outline-none">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu Panel -->
+        <div id="mobile-menu" class="hidden md:hidden bg-brand-bg border-b border-brand-border px-4 pt-2 pb-4 space-y-1">
+            <a href="#features" class="block text-brand-muted hover:text-zinc-100 py-2 text-xs font-medium">Workspace Benefits</a>
+            <a href="#hardware" class="block text-brand-muted hover:text-zinc-100 py-2 text-xs font-medium">Memory Planner</a>
+            <a href="#docs" class="block text-brand-muted hover:text-zinc-100 py-2 text-xs font-medium">Documentation</a>
+            <hr class="border-brand-border my-2">
+            <a href="https://github.com/ridwanmubarok/robit" target="_blank" class="flex items-center space-x-2 text-brand-muted hover:text-zinc-100 py-2 text-xs font-mono">
+                <i class="fa-brands fa-github"></i>
+                <span>GitHub</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="relative pt-24 pb-16 md:pt-36 md:pb-24 overflow-hidden border-b border-brand-border">
+        <!-- Minimal Grid Lines background -->
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1f1f23_1px,transparent_1px),linear-gradient(to_bottom,#1f1f23_1px,transparent_1px)] bg-[size:5rem_5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_15%,#000_65%,transparent_100%)] opacity-25"></div>
+        <div class="absolute top-10 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-white/5 rounded-full blur-[110px] pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                
+                <!-- Left Details -->
+                <div class="lg:col-span-6 space-y-5 text-center lg:text-left">
+                    <div class="inline-flex items-center space-x-2 bg-zinc-900 border border-brand-border rounded px-2.5 py-1 text-[11px] text-zinc-300 font-mono">
+                        <span class="flex h-1.5 w-1.5 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-zinc-300"></span>
+                        </span>
+                        <span>Robit Desktop Workspace — macOS, Windows & Linux</span>
+                    </div>
+
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.10] text-zinc-50 font-sans">
+                        Your private local AI workspace for peak productivity.
+                    </h1>
+
+                    <p class="text-sm sm:text-base text-brand-muted max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                        Robit is an ultra-lightweight, native open-source desktop application that transforms your computer into a high-octane AI productivity environment. Run powerful GGUF models completely offline with zero configuration and zero cloud data leaks.
+                    </p>
+
+                    <!-- Minimal Desktop Platform CTAs -->
+                    <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-3">
+                        <a href="#docs" class="w-full sm:w-auto px-5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-brand-bg font-semibold rounded text-center text-xs transition shadow-premium">
+                            Download Desktop Client
+                        </a>
+                        <div class="flex items-center space-x-1.5 text-xs font-mono text-brand-subtle py-2 sm:py-0">
+                            <span class="px-2 py-1 bg-zinc-900 border border-brand-border rounded text-[10px]"><i class="fa-brands fa-apple"></i> Mac</span>
+                            <span class="px-2 py-1 bg-zinc-900 border border-brand-border rounded text-[10px]"><i class="fa-brands fa-windows"></i> Windows</span>
+                            <span class="px-2 py-1 bg-zinc-900 border border-brand-border rounded text-[10px]"><i class="fa-brands fa-ubuntu"></i> Linux</span>
+
+                        </div>
+                    </div>
+
+                    <!-- Minimalist Badges -->
+                    <div class="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 pt-4 text-[10px] text-brand-subtle font-mono uppercase tracking-widest">
+                        <div class="flex items-center space-x-1.5">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>Zero Cloud Latency</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <i class="fa-solid fa-code"></i>
+                            <span>Developer Integrations</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>100% Offline Privacy</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Clean Monochrome Feature Dashboard Spotlight -->
+                <div class="lg:col-span-6 w-full max-w-lg mx-auto">
+                    <div class="bg-brand-panel rounded-lg border border-brand-border p-6 shadow-premium space-y-6">
+                        <div class="flex items-center justify-between border-b border-brand-border pb-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-700"></span>
+                                <span class="text-xs font-mono text-zinc-300">robit-features.json</span>
+                            </div>
+                            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Workspace Modules</span>
+                        </div>
+
+                        <!-- Core Features Summary List -->
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-3.5">
+                                <div class="w-7 h-7 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-xs shrink-0">
+                                    <i class="fa-solid fa-robot"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-mono font-bold text-zinc-100 uppercase tracking-wide">Agentic Thinking Loop</h4>
+                                    <p class="text-xs text-brand-muted mt-0.5">ROBIT can search the web and read files autonomously to solve complex tasks directly within the native GUI environment.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-3.5">
+                                <div class="w-7 h-7 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-xs shrink-0">
+                                    <i class="fa-brands fa-html5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-mono font-bold text-zinc-100 uppercase tracking-wide">Live HTML/CSS Preview</h4>
+                                    <p class="text-xs text-brand-muted mt-0.5">Instant visual rendering of web designs directly in the chat interface. Build UIs rapidly without leaving your workspace.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-3.5">
+                                <div class="w-7 h-7 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-xs shrink-0">
+                                    <i class="fa-solid fa-microchip"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-mono font-bold text-zinc-100 uppercase tracking-wide">Universal Hardware Support</h4>
+                                    <p class="text-xs text-brand-muted mt-0.5">Native optimization for NVIDIA (CUDA), AMD/Intel (Vulkan), and Mac (Metal). Run locally on any system.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-brand-border pt-3.5 flex items-center justify-between text-[11px] font-mono text-brand-subtle">
+                            <span>Ready to serve locally at:</span>
+                            <span class="text-zinc-100">localhost:8080</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- KEY FEATURES SECTION -->
+    <section id="features" class="py-16 bg-brand-bg relative border-b border-brand-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-2xl mx-auto space-y-3 mb-12">
+                <h2 class="text-[10px] uppercase tracking-widest text-brand-subtle font-mono font-bold">Built For Productivity</h2>
+                <h3 class="text-2xl sm:text-3xl font-bold text-zinc-100">Professional local AI workspace</h3>
+                <p class="text-sm text-brand-muted leading-relaxed">
+                    Designed to minimize context switching, protect sensitive corporate data, and keep your creative pipeline running at native speed.
+                </p>
+            </div>
+
+            <!-- Features Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                <!-- Feature 1 -->
+                <div class="bg-brand-surface/20 border border-brand-border p-6 rounded hover:border-brand-borderLight transition-all duration-200">
+                    <div class="w-9 h-9 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-sm mb-4">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-zinc-100 mb-2">Agentic Thinking Loop</h4>
+                    <p class="text-xs text-brand-muted leading-relaxed">
+                        ROBIT can search the web and read files autonomously to solve complex tasks without manual intervention or configuration.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="bg-brand-surface/20 border border-brand-border p-6 rounded hover:border-brand-borderLight transition-all duration-200">
+                    <div class="w-9 h-9 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-sm mb-4">
+                        <i class="fa-brands fa-html5"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-zinc-100 mb-2">Live HTML/CSS Preview</h4>
+                    <p class="text-xs text-brand-muted leading-relaxed">
+                        Instant visual rendering of web designs directly in the chat interface. Prototype UIs and see the results instantly.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="bg-brand-surface/20 border border-brand-border p-6 rounded hover:border-brand-borderLight transition-all duration-200">
+                    <div class="w-9 h-9 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-sm mb-4">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-zinc-100 mb-2">Universal Hardware Support</h4>
+                    <p class="text-xs text-brand-muted leading-relaxed">
+                        Native optimization for NVIDIA (CUDA), AMD/Intel (Vulkan), and Mac (Metal). Maximize performance automatically based on your device.
+                    </p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="bg-brand-surface/20 border border-brand-border p-6 rounded hover:border-brand-borderLight transition-all duration-200">
+                    <div class="w-9 h-9 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-sm mb-4">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-zinc-100 mb-2">High-Speed 1-Bit Inference</h4>
+                    <p class="text-xs text-brand-muted leading-relaxed">
+                        Integrates PrismML kernels for maximum tokens/sec even on older or standard CPUs without dedicated graphics.
+                    </p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="bg-brand-surface/20 border border-brand-border p-6 rounded hover:border-brand-borderLight transition-all duration-200">
+                    <div class="w-9 h-9 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-sm mb-4">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-zinc-100 mb-2">Absolute Data Sovereignty</h4>
+                    <p class="text-xs text-brand-muted leading-relaxed">
+                        Never worry about third-party server breaches. Every text calculation and AI inference remains within your system borders.
+                    </p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="bg-brand-surface/20 border border-brand-border p-6 rounded hover:border-brand-borderLight transition-all duration-200">
+                    <div class="w-9 h-9 rounded bg-zinc-900 border border-brand-border flex items-center justify-center text-zinc-300 text-sm mb-4">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-zinc-100 mb-2">Multi-Model GGUF Support</h4>
+                    <p class="text-xs text-brand-muted leading-relaxed">
+                        Supports DeepSeek, Llama 3.1, Phi-3, and Qwen. Toggle between models depending on whether you are coding or writing.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- HARDWARE SIMULATOR & PERFORMANCE CALCULATOR -->
+    <section id="hardware" class="py-16 relative overflow-hidden border-b border-brand-border bg-zinc-950">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                
+                <!-- Left Details -->
+                <div class="lg:col-span-5 space-y-5">
+                    <div class="inline-flex items-center space-x-2 bg-zinc-900 border border-brand-border rounded px-2 text-[10px] text-zinc-400 font-mono">
+                        <span>Workspace Memory Planner</span>
+                    </div>
+                    <h3 class="text-2xl sm:text-3xl font-bold text-zinc-100">Maximize local workspace performance</h3>
+                    <p class="text-xs sm:text-sm text-brand-muted leading-relaxed">
+                        Ensure your workspace assistant works perfectly alongside your browser, editor, and system processes. Configure your computer specs below to find the best local GGUF model setup.
+                    </p>
+                    <div class="space-y-3.5 pt-2">
+                        <div class="flex items-start space-x-3 text-xs text-brand-muted">
+                            <span class="text-zinc-100 mt-0.5"><i class="fa-solid fa-check text-[10px]"></i></span>
+                            <p><strong>Work-Parallel Processing:</strong> Calculations assume standard IDE + local development server background overhead.</p>
+                        </div>
+                        <div class="flex items-start space-x-3 text-xs text-brand-muted">
+                            <span class="text-zinc-100 mt-0.5"><i class="fa-solid fa-check text-[10px]"></i></span>
+                            <p><strong>Quantization Accuracy:</strong> Recommends Q4_K_M GGUF format for optimal accuracy/footprint ratio.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Calculator Widget with Premium Minimal styling -->
+                <div class="lg:col-span-7 bg-zinc-900 border border-brand-border p-6 rounded-lg">
+                    <div class="space-y-5">
+                        
+                        <!-- Slider Input 1: RAM -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">System RAM Capacity</label>
+                                <span id="ram-value" class="text-xs font-mono font-bold text-zinc-100 bg-zinc-800 border border-brand-border px-2 py-0.5 rounded">16 GB</span>
+                            </div>
+                            <input type="range" id="ram-slider" min="8" max="64" step="8" value="16" class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-zinc-100" oninput="calculateSpecs()">
+                            <div class="flex justify-between text-[10px] text-brand-subtle font-mono mt-1">
+                                <span>8 GB</span>
+                                <span>16 GB</span>
+                                <span>32 GB</span>
+                                <span>64 GB</span>
+                            </div>
+                        </div>
+
+                        <!-- Slider Input 2: VRAM -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Dedicated GPU VRAM</label>
+                                <span id="vram-value" class="text-xs font-mono font-bold text-zinc-100 bg-zinc-800 border border-brand-border px-2 py-0.5 rounded">8 GB</span>
+                            </div>
+                            <input type="range" id="vram-slider" min="0" max="24" step="4" value="8" class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-zinc-100" oninput="calculateSpecs()">
+                            <div class="flex justify-between text-[10px] text-brand-subtle font-mono mt-1">
+                                <span>0 GB (CPU-Only)</span>
+                                <span>8 GB</span>
+                                <span>16 GB</span>
+                                <span>24 GB</span>
+                            </div>
+                        </div>
+
+                        <!-- Minimal Divider line -->
+                        <div class="border-t border-brand-border my-1"></div>
+
+                        <!-- Calculator Results -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <!-- Model Recommendation -->
+                            <div class="bg-brand-bg p-3.5 rounded border border-brand-border flex flex-col justify-between">
+                                <span class="text-[9px] text-brand-subtle uppercase tracking-wider block mb-1">Recommended Workspace Model</span>
+                                <span id="calc-model" class="text-xs font-bold text-zinc-100">Llama-3-8B-Instruct</span>
+                            </div>
+                            <!-- Quantization Type -->
+                            <div class="bg-brand-bg p-3.5 rounded border border-brand-border flex flex-col justify-between">
+                                <span class="text-[9px] text-brand-subtle uppercase tracking-wider block mb-1">Optimal Quantization Configuration</span>
+                                <span id="calc-quant" class="text-xs font-bold text-zinc-100">Q4_K_M <span class="text-[10px] text-brand-subtle">(4-bit)</span></span>
+                            </div>
+                            <!-- Estimated Speed -->
+                            <div class="bg-brand-bg p-3.5 rounded border border-brand-border flex flex-col justify-between">
+                                <span class="text-[9px] text-brand-subtle uppercase tracking-wider block mb-1">Estimated Speed</span>
+                                <div class="flex items-baseline space-x-1">
+                                    <span id="calc-speed" class="text-xl font-bold text-zinc-100">32.4</span>
+                                    <span class="text-[10px] font-mono text-brand-subtle">t/s</span>
+                                </div>
+                            </div>
+                            <!-- Storage File Size -->
+                            <div class="bg-brand-bg p-3.5 rounded border border-brand-border flex flex-col justify-between">
+                                <span class="text-[9px] text-brand-subtle uppercase tracking-wider block mb-1">Workspace Model Disk Footprint</span>
+                                <span id="calc-size" class="text-xs font-bold text-zinc-100">~ 4.8 GB</span>
+                            </div>
+                        </div>
+
+                        <!-- RAM System load analyzer visualizer -->
+                        <div class="bg-brand-bg p-3.5 rounded border border-brand-border space-y-2">
+                            <div class="flex justify-between text-[11px] font-semibold">
+                                <span class="text-brand-muted">System Headroom Rating</span>
+                                <span id="calc-load-text" class="text-zinc-100 font-mono font-bold">Optimal</span>
+                            </div>
+                            <div class="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                                <div id="calc-load-bar" class="bg-zinc-100 h-full rounded-full transition-all duration-300" style="width: 40%"></div>
+                            </div>
+                            <span class="text-[9px] text-brand-subtle leading-none block">Estimated based on background workspace runtime overhead (~100MB).</span>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- DOCUMENTATION SECTION -->
+    <section id="docs" class="py-16 bg-brand-bg border-b border-brand-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-2xl mx-auto space-y-3 mb-12">
+                <h2 class="text-[10px] uppercase tracking-widest text-brand-subtle font-mono font-bold">Integration & Setup</h2>
+                <h3 class="text-2xl sm:text-3xl font-bold text-zinc-100">Configuring Your Local Workspace</h3>
+                <p class="text-sm text-brand-muted leading-relaxed">
+                    Set up your native application interface and hook the workspace server into your primary editors and productivity workflows.
+                </p>
+            </div>
+
+            <!-- Docs Architecture -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- Left Docs Nav Links -->
+                <div class="lg:col-span-3 space-y-1 lg:sticky lg:top-20">
+                    <button onclick="switchTab('download')" id="btn-download" class="doc-tab-btn active w-full flex items-center space-x-3 px-3 py-2.5 rounded text-left text-xs font-mono font-medium border transition duration-150 bg-zinc-900 border-brand-border text-zinc-100">
+                        <i class="fa-solid fa-circle-down w-4 text-center"></i>
+                        <span>Native App Install</span>
+                    </button>
+                    
+                    
+                    
+                </div>
+
+                <!-- Right Docs Content Console -->
+                <div class="lg:col-span-9 bg-zinc-900 border border-brand-border rounded-lg p-6 backdrop-blur" id="docs-content">
+                    
+                    <!-- Content: DOWNLOADS -->
+                    <div id="content-download" class="doc-content-pane space-y-5">
+                        <h4 class="text-base font-bold text-zinc-100">Download Native Workspace App</h4>
+                        <p class="text-xs sm:text-sm text-brand-muted leading-relaxed">
+                            Robit operates natively as a desktop application on macOS, Windows, and Linux. Choose the appropriate installer package for your operating system.
+                        </p>
+
+                        <!-- Download Card Layout -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                            <!-- macOS -->
+                            <div class="bg-zinc-950 p-4 rounded border border-brand-border space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold font-mono text-zinc-100">macOS Workspace</span>
+                                    <i class="fa-brands fa-apple text-sm text-brand-muted"></i>
+                                </div>
+                                <p class="text-[11px] text-brand-subtle">Supports Intel & Apple Silicon (M1/M2/M3) with metal acceleration.</p>
+                                <div class="space-y-1.5 pt-2">
+                                    <a href="https://github.com/ridwanmubarok/robit/releases/latest" target="_blank" class="block text-center w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-brand-bg text-xs font-bold rounded transition">Download from GitHub</a>
+                                </div>
+                            </div>
+                            <!-- Linux / Ubuntu -->
+                            <div class="bg-zinc-950 p-4 rounded border border-brand-border space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold font-mono text-zinc-100">Linux Workspace</span>
+                                    <i class="fa-brands fa-ubuntu text-sm text-brand-muted"></i>
+                                </div>
+                                <p class="text-[11px] text-brand-subtle">Supports Ubuntu, Debian, AppImage & native x11/wayland engines.</p>
+                                <div class="space-y-1.5 pt-2">
+                                    <a href="https://github.com/ridwanmubarok/robit/releases/latest" target="_blank" class="block text-center w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-brand-bg text-xs font-bold rounded transition">Download from GitHub</a>
+                                </div>
+                            </div>
+                            <!-- Windows -->
+                            <div class="bg-zinc-950 p-4 rounded border border-brand-border space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold font-mono text-zinc-100">Windows Workspace</span>
+                                    <i class="fa-brands fa-windows text-sm text-brand-muted"></i>
+                                </div>
+                                <p class="text-[11px] text-brand-subtle">Supports Windows 10/11 x64 with DirectX/CUDA acceleration.</p>
+                                <div class="space-y-1.5 pt-2">
+                                    <a href="https://github.com/ridwanmubarok/robit/releases/latest" target="_blank" class="block text-center w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-brand-bg text-xs font-bold rounded transition">Download from GitHub</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CALL TO ACTION: Contribute Section -->
+    <section class="py-16 bg-zinc-950 border-b border-brand-border relative overflow-hidden">
+        <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8 relative z-10 space-y-5">
+            <h3 class="text-2xl sm:text-3xl font-bold text-zinc-100">Help shape local developer computing</h3>
+            <p class="text-xs sm:text-sm text-brand-muted leading-relaxed max-w-xl mx-auto">
+                Robit is built transparently under the MIT license by developers from across the globe. Join the repository to submit feature requests or contribute to desktop workspace optimizations.
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <a href="https://github.com/ridwanmubarok/robit" target="_blank" class="w-full sm:w-auto px-5 py-2.5 bg-zinc-900 border border-brand-border hover:border-zinc-700 hover:bg-zinc-800 text-zinc-100 font-bold rounded flex items-center justify-center space-x-2.5 text-xs transition">
+                    <i class="fa-brands fa-github text-sm"></i>
+                    <span class="font-mono">Star on GitHub</span>
+                </a>
+                <a href="#docs" class="w-full sm:w-auto px-5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-brand-bg font-bold rounded text-center text-xs transition">
+                    Get Native Desktop Client
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-brand-bg py-10 text-xs text-brand-subtle">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                
+                <!-- Logo & brand identity in footer -->
+                <div class="flex items-center space-x-2">
+                    <div class="w-6 h-6 rounded bg-zinc-100 flex items-center justify-center">
+                        <span class="font-mono font-bold text-brand-bg text-xs">r</span>
+                    </div>
+                    <span class="font-bold text-zinc-100 tracking-wider">robit</span>
+                </div>
+
+                <!-- Copyright statement -->
+                <div class="text-center md:text-left space-y-1 text-[11px]">
+                    <p>© 2026 rogatekno team. All rights reserved.</p>
+                    <p class="text-[10px] text-zinc-600">Released globally under the open-source MIT license protocols.</p>
+                </div>
+
+                <!-- Footer navigational links -->
+                <div class="flex items-center space-x-6 text-[11px]">
+                    <a href="https://github.com/ridwanmubarok/robit" class="hover:text-zinc-100 transition"><i class="fa-brands fa-github text-sm"></i></a>
+                    <a href="https://github.com/ridwanmubarok/robit/issues" class="hover:text-zinc-100 transition">Issues</a>
+                    <a href="https://github.com/ridwanmubarok/robit/blob/main/LICENSE" class="hover:text-zinc-100 transition">MIT License</a>
+                </div>
+
+            </div>
+        </div>
+    </footer>
+
+    <!-- INTERACTIVE JAVASCRIPT LOGIC -->
+    <script>
+        // Hamburger Menu Logic
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Toast Helper
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            toastMsg.innerText = message;
+            toast.classList.remove('translate-y-10', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-10', 'opacity-0');
+            }, 2500);
+        }
+
+        // Copy Clipboard Helper
+        function copyCommand(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                console.error('Failed to copy command:', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // --- SPEC CALCULATOR LOGIC ---
+        function calculateSpecs() {
+            const ramVal = parseInt(document.getElementById('ram-slider').value);
+            const vramVal = parseInt(document.getElementById('vram-slider').value);
+
+            document.getElementById('ram-value').innerText = `${ramVal} GB`;
+            document.getElementById('vram-value').innerText = `${vramVal} GB`;
+
+            let modelName = "";
+            let quantType = "";
+            let speed = 0;
+            let size = "";
+            let loadStatus = "";
+
+            const usableRam = Math.max(0, ramVal - 5); 
+            const usableVram = Math.max(0, vramVal - 1); 
+            const totalUsable = usableRam + usableVram;
+
+            if (totalUsable >= 16) {
+                modelName = "Llama-3.1-8B-Instruct";
+                quantType = "Q4_K_M (4-bit)";
+                size = "~ 4.9 GB";
+                if (usableVram >= 5.5) speed = 35.0;      
+                else if (usableVram >= 2) speed = 15.0; 
+                else speed = 5.0;                        
+            } else if (totalUsable >= 10) {
+                modelName = "DeepSeek-R1 7B";
+                quantType = "Q4_K_M (4-bit)";
+                size = "~ 4.1 GB";
+                if (usableVram >= 4.7) speed = 25.0;
+                else if (usableVram >= 2) speed = 12.0;
+                else speed = 4.0;
+            } else if (totalUsable >= 6) {
+                modelName = "Phi-3 Mini";
+                quantType = "Q4_K_M (4-bit)";
+                size = "~ 2.2 GB";
+                if (usableVram >= 2.8) speed = 35.0;
+                else if (usableVram >= 1.5) speed = 18.0;
+                else speed = 10.0;
+            } else {
+                modelName = "Bonsai 8B";
+                quantType = "Q1_0 (1-bit)";
+                size = "~ 1.15 GB";
+                if (usableVram >= 1.6) speed = 42.5;
+                else speed = 20.0;
+            }
+
+            const totalMemory = ramVal + vramVal;
+            const absoluteLoad = parseFloat(size.replace('~ ', '').replace(' GB', ''));
+            const systemLoadPercentage = ((absoluteLoad + 5) / totalMemory) * 100; 
+
+            if (systemLoadPercentage < 55) {
+                loadStatus = "Safe Headroom (Highly Recommended)";
+            } else if (systemLoadPercentage < 85) {
+                loadStatus = "Optimal Workspace Balance";
+            } else {
+                loadStatus = "Memory Warning (Close other apps)";
+            }
+
+            document.getElementById('calc-model').innerText = modelName;
+            document.getElementById('calc-quant').innerHTML = `${quantType}`;
+            document.getElementById('calc-speed').innerText = speed.toFixed(1);
+            document.getElementById('calc-size').innerText = size;
+            document.getElementById('calc-load-text').innerText = loadStatus;
+
+            const loadBar = document.getElementById('calc-load-bar');
+            loadBar.style.width = `${Math.min(systemLoadPercentage, 100)}%`;
+            if (systemLoadPercentage > 85) {
+                loadBar.classList.add('bg-red-500');
+                loadBar.classList.remove('bg-zinc-100');
+            } else {
+                loadBar.classList.add('bg-zinc-100');
+                loadBar.classList.remove('bg-red-500');
+            }
+        }
+
+        // --- DOCS TAB NAV SWITCHING ---
+        function switchTab(tabId) {
+            const panes = document.querySelectorAll('.doc-content-pane');
+            panes.forEach(pane => pane.classList.add('hidden'));
+
+            const buttons = document.querySelectorAll('.doc-tab-btn');
+            buttons.forEach(btn => {
+                btn.className = "doc-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded text-left text-xs font-mono font-medium border transition duration-150 bg-transparent border-transparent text-brand-muted hover:bg-zinc-900";
+            });
+
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            activeBtn.className = "doc-tab-btn active w-full flex items-center space-x-3 px-3 py-2.5 rounded text-left text-xs font-mono font-medium border transition duration-150 bg-zinc-900 border-brand-border text-zinc-100";
+        }
+
+        // Initialize elements on load
+        window.onload = function() {
+            calculateSpecs();
+        }
+    </script>
+</body>
+</html>
