@@ -656,29 +656,41 @@
                 modelName = "Llama-3.1-8B-Instruct";
                 quantType = "Q4_K_M (4-bit)";
                 size = "~ 4.9 GB";
-                if (usableVram >= 5.5) speed = 35.0;      
-                else if (usableVram >= 2) speed = 15.0; 
-                else speed = 5.0;                        
+                if (usableVram >= 20) speed = 110 + (ramVal * 0.1);
+                else if (usableVram >= 14) speed = 80 + (ramVal * 0.1);
+                else if (usableVram >= 10) speed = 60 + (ramVal * 0.1);
+                else if (usableVram >= 6) speed = 40 + (ramVal * 0.1);
+                else if (usableVram >= 2) speed = 20 + (ramVal * 0.2);
+                else speed = 8 + (ramVal * 0.3);
             } else if (totalUsable >= 10) {
                 modelName = "DeepSeek-R1 7B";
                 quantType = "Q4_K_M (4-bit)";
                 size = "~ 4.1 GB";
-                if (usableVram >= 4.7) speed = 25.0;
-                else if (usableVram >= 2) speed = 12.0;
-                else speed = 4.0;
+                if (usableVram >= 20) speed = 120 + (ramVal * 0.1);
+                else if (usableVram >= 14) speed = 90 + (ramVal * 0.1);
+                else if (usableVram >= 10) speed = 70 + (ramVal * 0.1);
+                else if (usableVram >= 4.5) speed = 50 + (ramVal * 0.1);
+                else if (usableVram >= 2) speed = 25 + (ramVal * 0.2);
+                else speed = 10 + (ramVal * 0.3);
             } else if (totalUsable >= 6) {
                 modelName = "Phi-3 Mini";
                 quantType = "Q4_K_M (4-bit)";
                 size = "~ 2.2 GB";
-                if (usableVram >= 2.8) speed = 35.0;
-                else if (usableVram >= 1.5) speed = 18.0;
-                else speed = 10.0;
+                if (usableVram >= 20) speed = 150 + (ramVal * 0.1);
+                else if (usableVram >= 14) speed = 120 + (ramVal * 0.1);
+                else if (usableVram >= 10) speed = 90 + (ramVal * 0.1);
+                else if (usableVram >= 2.5) speed = 65 + (ramVal * 0.1);
+                else if (usableVram >= 1) speed = 35 + (ramVal * 0.2);
+                else speed = 15 + (ramVal * 0.3);
             } else {
                 modelName = "Bonsai 8B";
                 quantType = "Q1_0 (1-bit)";
                 size = "~ 1.15 GB";
-                if (usableVram >= 1.6) speed = 42.5;
-                else speed = 20.0;
+                if (usableVram >= 20) speed = 180 + (ramVal * 0.1);
+                else if (usableVram >= 14) speed = 150 + (ramVal * 0.1);
+                else if (usableVram >= 10) speed = 120 + (ramVal * 0.1);
+                else if (usableVram >= 1.5) speed = 80 + (ramVal * 0.1);
+                else speed = 30 + (ramVal * 0.4);
             }
 
             const totalMemory = ramVal + vramVal;
