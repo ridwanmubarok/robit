@@ -23,19 +23,7 @@ const MessageContent = ({ text, isUser, streaming }) => {
                     <div className="flex items-center gap-2 mb-3">
                         <button onClick={() => setPreviewMode(false)} className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${!previewMode ? 'bg-neutral-800 text-white' : 'bg-[#171717]/50 text-neutral-400 hover:bg-[#171717]'}`}>Code View</button>
                         <button onClick={() => setPreviewMode(true)} className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${previewMode ? 'bg-neutral-800 text-white' : 'bg-[#171717]/50 text-neutral-400 hover:bg-[#171717]'}`}>UI Preview</button>
-                        {previewMode && (
-                            <button 
-                                onClick={() => {
-                                    const blob = new Blob([htmlContent], { type: 'text/html' });
-                                    const url = URL.createObjectURL(blob);
-                                    window.open(url, '_blank');
-                                }} 
-                                className="ml-auto flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-[#171717]/50 text-white hover:bg-[#171717] hover:text-neutral-300 transition-colors"
-                            >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                Open in New Tab
-                            </button>
-                        )}
+
                     </div>
                 )}
                 
@@ -338,8 +326,8 @@ export default function ChatArea({ messages, isGenerating, onSend, streamingMsg,
                             );
                         }
                         return (
-                            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} fade-in`}>
-                                <div className="max-w-[85%]">
+                            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start w-full'} fade-in`}>
+                                <div className={`${m.role === 'user' ? 'max-w-[85%]' : 'w-full max-w-[95%]'}`}>
                                     <div className="flex items-center gap-2 mb-1 pl-1">
                                         {m.role !== 'user' && (
                                             <div className="w-5 h-5 rounded-md bg-gradient-to-tr bg-neutral-800 flex items-center justify-center shadow-lg">
@@ -382,8 +370,8 @@ export default function ChatArea({ messages, isGenerating, onSend, streamingMsg,
                 )}
                 
                 {isGenerating && (
-                    <div className="flex justify-start fade-in">
-                        <div className="max-w-[85%]">
+                    <div className="flex justify-start w-full fade-in">
+                        <div className="w-full max-w-[95%]">
                             <div className="flex items-center gap-2 mb-1 pl-1">
                                 <div className="w-5 h-5 rounded-md bg-gradient-to-tr bg-neutral-800 flex items-center justify-center shadow-lg">
                                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
