@@ -50,6 +50,7 @@ pyinstaller --noconfirm --onefile --console \
   --hidden-import "sqlite3" \
   --hidden-import "turbovec" \
   --hidden-import "sentence_transformers" \
+  --hidden-import "bs4" \
   --exclude-module "nvidia" \
   main.py
 
