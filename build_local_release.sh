@@ -64,7 +64,7 @@ chmod +x ui/src-tauri/bin/robit-backend-x86_64-unknown-linux-gnu
 echo "[4/4] Membangun antarmuka desktop (Tauri)..."
 cd ui
 npm install
-npm run tauri build
+npm run tauri build -- --bundles deb
 
 echo "==============================================="
 echo "   Build Selesai!"
