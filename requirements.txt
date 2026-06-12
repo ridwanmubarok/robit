@@ -13,3 +13,5 @@ click
 ddgs
 rapidocr_onnxruntime
 pyinstaller
+turbovec
+sentence-transformers
