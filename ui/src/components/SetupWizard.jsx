@@ -99,15 +99,12 @@ export default function SetupWizard({ onComplete }) {
 
   const handleSelectFile = async () => {
     try {
-      const file = await open({
-        multiple: false,
-        filters: [{
-          name: 'GGUF Model',
-          extensions: ['gguf']
-        }]
+      const res = await fetch('/api/system/select-file', {
+        method: 'POST'
       });
-      if (file) {
-        setSelectedFile(file);
+      const data = await res.json();
+      if (data.success && data.filepath) {
+        setSelectedFile(data.filepath);
       }
     } catch (err) {
       console.error(err);

@@ -35,22 +35,21 @@ export default function SettingsArea() {
 
     const handleImportModel = async () => {
         try {
-            const { open } = window.__TAURI__.dialog;
-            const selected = await open({
-                filters: [{ name: 'GGUF Model', extensions: ['gguf'] }],
-                multiple: false
+            const res = await fetch('/api/system/select-file', {
+                method: 'POST'
             });
+            const data = await res.json();
             
-            if (selected) {
+            if (data.success && data.filepath) {
                 setImportStatus("Importing model...");
-                const res = await fetch('/api/setup/import-model', {
+                const importRes = await fetch('/api/setup/import-model', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_path: selected })
+                    body: JSON.stringify({ source_path: data.filepath })
                 });
-                const data = await res.json();
+                const importData = await importRes.json();
                 
-                if (data.success) {
+                if (importData.success) {
                     const interval = setInterval(async () => {
                         const statusRes = await fetch('/api/setup/download-status');
                         const statusData = await statusRes.json();
@@ -66,7 +65,7 @@ export default function SettingsArea() {
                         }
                     }, 1000);
                 } else {
-                    setImportStatus("❌ Error: " + data.message);
+                    setImportStatus("❌ Error: " + importData.message);
                 }
             }
         } catch (err) {

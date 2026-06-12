@@ -657,6 +657,32 @@ async def select_dir_endpoint():
     except Exception as e:
         return {"success": False, "error": f"Gagal membuka folder picker: {str(e)}"}
 
+@router.post("/api/system/select-file")
+async def select_file_endpoint():
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        import asyncio
+        
+        def ask_file():
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            selected = filedialog.askopenfilename(
+                title="Pilih File Model GGUF",
+                filetypes=[("GGUF Models", "*.gguf"), ("All Files", "*.*")]
+            )
+            root.destroy()
+            return selected
+            
+        selected_file = await asyncio.to_thread(ask_file)
+        if not isinstance(selected_file, str):
+            selected_file = ""
+            
+        return {"success": True, "filepath": selected_file}
+    except Exception as e:
+        return {"success": False, "error": f"Gagal membuka file picker: {str(e)}"}
+
 @router.post("/api/planning/save")
 async def save_planning_endpoint(request: Request):
     body = await request.json()
