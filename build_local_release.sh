@@ -49,6 +49,7 @@ pyinstaller --noconfirm --onefile --console \
   --hidden-import "sqlite3" \
   --hidden-import "turbovec" \
   --hidden-import "sentence_transformers" \
+  --exclude-module "nvidia" \
   main.py
 
 # 3. Pindahkan hasil build backend ke folder tauri
