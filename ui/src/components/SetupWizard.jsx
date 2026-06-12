@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 export default function SetupWizard({ onComplete }) {
   const [step, setStep] = useState(0);
   const [hardware, setHardware] = useState(null);
+  const [selectedEngine, setSelectedEngine] = useState("Vulkan");
   const [serverLogs, setServerLogs] = useState('');
   const logsEndRef = useRef(null);
   
@@ -27,6 +28,7 @@ export default function SetupWizard({ onComplete }) {
           .then(data => {
             if(data.success) {
               setHardware(data);
+              setSelectedEngine(data.recommendedEngine);
               setStep(1);
             }
           })
@@ -93,7 +95,7 @@ export default function SetupWizard({ onComplete }) {
     fetch('/api/setup/download-engine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ engine_type: hardware?.recommendedEngine || "Vulkan" })
+      body: JSON.stringify({ engine_type: selectedEngine })
     });
   };
 
@@ -170,7 +172,18 @@ export default function SetupWizard({ onComplete }) {
                 <div className="flex justify-between"><span className="text-neutral-500">RAM:</span> <span className="font-mono text-white">{hardware.ram}</span></div>
                 <div className="flex justify-between"><span className="text-neutral-500">GPU:</span> <span className="font-mono text-white">{hardware.gpu}</span></div>
                 <div className="mt-4 p-3 bg-[#111111] rounded-lg border border-neutral-700">
-                  <p className="text-sm">Based on your hardware, we recommend the <strong>{hardware.recommendedEngine}</strong> engine.</p>
+                  <p className="text-sm mb-3">Based on your hardware, we recommend the <strong>{hardware.recommendedEngine}</strong> engine.</p>
+                  <label className="text-xs text-neutral-400 block mb-1">Select Driver:</label>
+                  <select 
+                    value={selectedEngine} 
+                    onChange={e => setSelectedEngine(e.target.value)}
+                    className="w-full bg-black border border-neutral-700 rounded px-2 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Vulkan">Vulkan (AMD / Intel / Universal)</option>
+                    <option value="CUDA">CUDA (NVIDIA GPUs)</option>
+                    <option value="Metal">Metal (Apple Silicon / Mac)</option>
+                    <option value="CPU">CPU Only (Slow)</option>
+                  </select>
                 </div>
               </div>
             )}
@@ -192,7 +205,7 @@ export default function SetupWizard({ onComplete }) {
             
             <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between">
               <div>
-                <p className="font-bold text-white">Llama.cpp ({hardware.recommendedEngine})</p>
+                <p className="font-bold text-white">Llama.cpp ({selectedEngine})</p>
                 <p className="text-xs text-neutral-500">~30 MB</p>
               </div>
               {engineState.status === 'idle' && (

@@ -48,10 +48,14 @@ async def get_hardware_info():
     
     if platform.system() == "Windows":
         recommended_engine = "Vulkan"
+        if shutil.which("nvidia-smi"):
+            recommended_engine = "CUDA"
     elif platform.system() == "Darwin":
         recommended_engine = "Metal"
     elif platform.system() == "Linux":
         recommended_engine = "Vulkan"
+        if shutil.which("nvidia-smi"):
+            recommended_engine = "CUDA"
         
     free_ram_gb = round(psutil.virtual_memory().available / (1024**3), 1)
 
