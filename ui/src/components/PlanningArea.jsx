@@ -17,6 +17,7 @@ export default function PlanningArea() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPickingDir, setIsPickingDir] = useState(false);
     const [isIndexing, setIsIndexing] = useState(false);
+    const [indexProgress, setIndexProgress] = useState(null);
     const [isDetectingTech, setIsDetectingTech] = useState(false);
     const [status, setStatus] = useState(null); // { type: 'success'|'error', text: '' }
     const [savingIndex, setSavingIndex] = useState(null); // index of message being saved
@@ -87,6 +88,37 @@ export default function PlanningArea() {
         
         return () => clearTimeout(timer);
     }, [targetDirs, selectedSaveDir, filename, techStack, messages]);
+
+    // Polling for indexing progress
+    useEffect(() => {
+        let interval;
+        if (isIndexing) {
+            interval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/planning/index-status');
+                    const data = await res.json();
+                    if (data.status === 'indexing') {
+                        setIndexProgress(data);
+                    } else if (data.status === 'done') {
+                        setIndexProgress(null);
+                        setIsIndexing(false);
+                        setStatus({ type: 'success', text: `Project successfully indexed: ${data.message}` });
+                    } else if (data.status === 'error') {
+                        setIndexProgress(null);
+                        setIsIndexing(false);
+                        setStatus({ type: 'error', text: data.message || 'Failed to index project.' });
+                    } else if (data.status === 'canceled') {
+                        setIndexProgress(null);
+                        setIsIndexing(false);
+                        setStatus({ type: 'error', text: data.message || 'Indexing canceled.' });
+                    }
+                } catch (e) {
+                    // ignore fetch error
+                }
+            }, 500);
+        }
+        return () => clearInterval(interval);
+    }, [isIndexing]);
 
     // Auto-scroll to bottom of chat
     useEffect(() => {
@@ -272,6 +304,7 @@ export default function PlanningArea() {
             return;
         }
         setIsIndexing(true);
+        setIndexProgress({ progress: 0, message: "Starting...", current_file: 0, total_files: 0 });
         setStatus(null);
         try {
             const res = await fetch('/api/planning/index-codebase', {
@@ -280,16 +313,22 @@ export default function PlanningArea() {
                 body: JSON.stringify({ target_dirs: dirsToIndex })
             });
             const data = await res.json();
-            if (data.success) {
-                setStatus({ type: 'success', text: `Project successfully indexed: ${data.message}` });
-            } else {
-                setStatus({ type: 'error', text: data.error || 'Failed to index project.' });
+            if (!data.success) {
+                setStatus({ type: 'error', text: data.error || 'Failed to start indexing.' });
+                setIsIndexing(false);
+                setIndexProgress(null);
             }
         } catch (err) {
-            setStatus({ type: 'error', text: `Indexing error: ${err.message}` });
-        } finally {
+            setStatus({ type: 'error', text: `Indexing start error: ${err.message}` });
             setIsIndexing(false);
+            setIndexProgress(null);
         }
+    };
+
+    const handleCancelIndex = async () => {
+        try {
+            await fetch('/api/planning/index-cancel', { method: 'POST' });
+        } catch (e) {}
     };
 
     const handleSendMessage = async (e, quickText = "") => {
@@ -528,29 +567,42 @@ export default function PlanningArea() {
                             )}
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleIndexAll}
-                            disabled={isIndexing || targetDirs.length === 0}
-                            className="w-full mt-3 bg-neutral-800 hover:bg-neutral-700 text-white border border-white/10 rounded-xl py-2 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2"
-                        >
-                            {isIndexing ? (
-                                <>
-                                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Indexing Project...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17.5M8 5h8M8 19h8"></path>
-                                    </svg>
-                                    Index Codebase (RAG)
-                                </>
-                            )}
-                        </button>
+                        {isIndexing && indexProgress ? (
+                            <div className="mt-3 bg-neutral-900 border border-neutral-800 rounded-xl p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-bold text-neutral-300 uppercase tracking-wider">Indexing...</span>
+                                    <span className="text-[10px] text-neutral-400">{indexProgress.current_file} / {indexProgress.total_files} files</span>
+                                </div>
+                                <div className="w-full bg-neutral-800 rounded-full h-1.5 mb-2 overflow-hidden">
+                                    <div 
+                                        className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                        style={{ width: `${indexProgress.progress}%` }}
+                                    ></div>
+                                </div>
+                                <div className="text-[10px] text-neutral-500 truncate mb-3" title={indexProgress.message}>
+                                    {indexProgress.message}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleCancelIndex}
+                                    className="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg py-1.5 px-3 text-xs font-semibold transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleIndexAll}
+                                disabled={targetDirs.length === 0}
+                                className="w-full mt-3 bg-neutral-800 hover:bg-neutral-700 text-white border border-white/10 rounded-xl py-2 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17.5M8 5h8M8 19h8"></path>
+                                </svg>
+                                {status?.type === 'error' && status?.text?.includes('cancel') ? 'Retry Indexing' : 'Index Codebase (RAG)'}
+                            </button>
+                        )}
                     </div>
 
 

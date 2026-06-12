@@ -1,6 +1,9 @@
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
-use tauri_plugin_shell::process::CommandEvent;
+use tauri_plugin_shell::process::{CommandEvent, CommandChild};
+use std::sync::Mutex;
+
+struct BackendState(Mutex<Option<CommandChild>>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[tauri::command]
@@ -25,7 +28,9 @@ pub fn run() {
       let log_file_path = log_dir.join("backend.log");
 
       let sidecar_command = app.shell().sidecar("robit-backend").unwrap();
-      let (mut rx, mut _child) = sidecar_command.spawn().expect("Failed to spawn robit-backend sidecar");
+      let (mut rx, child) = sidecar_command.spawn().expect("Failed to spawn robit-backend sidecar");
+      
+      app.manage(BackendState(Mutex::new(Some(child))));
 
       tauri::async_runtime::spawn(async move {
           use std::io::Write;
@@ -66,6 +71,19 @@ pub fn run() {
         // debug
       }
       Ok(())
+    })
+    .on_window_event(|window, event| match event {
+        tauri::WindowEvent::Destroyed => {
+            let app = window.app_handle();
+            if let Some(state) = app.try_state::<BackendState>() {
+                if let Ok(mut lock) = state.0.lock() {
+                    if let Some(child) = lock.take() {
+                        let _ = child.kill();
+                    }
+                }
+            }
+        }
+        _ => {}
     })
     .invoke_handler(tauri::generate_handler![read_backend_log])
     .run(tauri::generate_context!())

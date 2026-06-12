@@ -66,11 +66,14 @@ class RobitRAG:
                 chunks.append(chunk)
         return chunks
 
-    def ingest_file(self, filepath):
+    def ingest_file(self, filepath, progress_callback=None, check_cancel=None):
         if not os.path.exists(filepath):
             return f"Error: File {filepath} not found."
             
         print(f"[RAG] Reading {filepath}...")
+        if check_cancel and check_cancel(): return "Canceled by user."
+        if progress_callback: progress_callback(1, 4, "Membaca dokumen...")
+        
         ext = filepath.split('.')[-1].lower()
         text = ""
         
@@ -79,6 +82,7 @@ class RobitRAG:
                 with open(filepath, "rb") as f:
                     reader = pypdf.PdfReader(f)
                     for page in reader.pages:
+                        if check_cancel and check_cancel(): return "Canceled by user."
                         t = page.extract_text()
                         if t: text += t + "\n"
             else:
@@ -91,12 +95,27 @@ class RobitRAG:
             return "File is empty or no text could be extracted."
             
         print(f"[RAG] Chunking text...")
+        if check_cancel and check_cancel(): return "Canceled by user."
+        if progress_callback: progress_callback(2, 4, "Memecah teks ke chunks...")
+        
         chunks = self._chunk_text(text)
         if not chunks:
             return "No chunks generated."
             
         print(f"[RAG] Generating embeddings for {len(chunks)} chunks...")
-        embeddings = self.model.encode(chunks, convert_to_numpy=True)
+        if check_cancel and check_cancel(): return "Canceled by user."
+        if progress_callback: progress_callback(3, 4, "Membuat Vector Embeddings...")
+        
+        # Batch encode to allow cancellation during long files
+        embeddings_list = []
+        batch_size = 32
+        for i in range(0, len(chunks), batch_size):
+            if check_cancel and check_cancel(): return "Canceled by user."
+            batch_chunks = chunks[i:i+batch_size]
+            emb = self.model.encode(batch_chunks, convert_to_numpy=True)
+            embeddings_list.extend(emb)
+        
+        embeddings = np.array(embeddings_list)
         
         # Prepare IDs using time to prevent collisions
         import time
@@ -126,11 +145,13 @@ class RobitRAG:
             
         return f"Successfully ingested {os.path.basename(filepath)}. Added {len(chunks)} chunks to vector database."
 
-    def ingest_workspace(self, workspace_path):
+    def ingest_workspace(self, workspace_path, progress_callback=None, check_cancel=None):
         if not os.path.isdir(workspace_path):
             return f"Error: Directory {workspace_path} not found."
             
         print(f"[RAG] Scanning workspace: {workspace_path}")
+        if progress_callback: progress_callback(0, 1, "Scanning workspace...")
+        
         allowed_exts = {".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".md", ".json", ".go", ".rs", ".cpp", ".c", ".h", ".java"}
         ignore_dirs = {".git", "node_modules", "venv", ".venv", "dist", "build", "__pycache__", ".astro", ".next"}
         ignore_dirs_lower = {d.lower() for d in ignore_dirs}
@@ -138,44 +159,53 @@ class RobitRAG:
         import time
         current_id = int(time.time() * 1000)
         
-        total_files = 0
-        total_chunks = 0
-        
+        # First pass: count files
+        files_to_process = []
         for root, dirs, files in os.walk(workspace_path):
-            # In-place modify dirs to skip ignored directories (case-insensitive)
             dirs[:] = [d for d in dirs if d.lower() not in ignore_dirs_lower]
-            
-            # Additional double-insurance check: skip if any part of the root path is an ignored directory
             root_parts = {p.lower() for p in os.path.normpath(root).split(os.sep)}
             if root_parts.intersection(ignore_dirs_lower):
                 continue
-            
             for file in files:
                 if file.endswith(".d.ts"):
                     continue
                 ext = os.path.splitext(file)[1].lower()
                 if ext in allowed_exts:
-                    filepath = os.path.join(root, file)
-                    try:
-                        with open(filepath, "r", encoding="utf-8") as f:
-                            text = f.read()
+                    files_to_process.append(os.path.join(root, file))
+                    
+        total_files_to_process = len(files_to_process)
+        if progress_callback: progress_callback(0, total_files_to_process, f"Menemukan {total_files_to_process} file...")
+        
+        total_files = 0
+        total_chunks = 0
+        
+        for i, filepath in enumerate(files_to_process):
+            if check_cancel and check_cancel():
+                print("[RAG] Workspace ingestion canceled.")
+                return f"Canceled. Indexed {total_files} files so far."
+                
+            if progress_callback: progress_callback(i, total_files_to_process, f"Memproses {os.path.basename(filepath)}...")
+            
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    text = f.read()
+                
+                if text.strip():
+                    chunks = self._chunk_text(text)
+                    if chunks:
+                        embeddings = self.model.encode(chunks, convert_to_numpy=True)
+                        ids = np.array(range(current_id, current_id + len(chunks)), dtype=np.uint64)
+                        current_id += len(chunks)
+                                
+                        self.index.add_with_ids(embeddings, ids)
                         
-                        if text.strip():
-                            chunks = self._chunk_text(text)
-                            if chunks:
-                                embeddings = self.model.encode(chunks, convert_to_numpy=True)
-                                ids = np.array(range(current_id, current_id + len(chunks)), dtype=np.uint64)
-                                current_id += len(chunks)
-                                
-                                self.index.add_with_ids(embeddings, ids)
-                                
-                                # Store the absolute path in the source information
-                                for i, chunk in zip(ids, chunks):
-                                    self.chunk_map[str(i)] = f"[Source: {filepath}] {chunk}"
-                                total_files += 1
-                                total_chunks += len(chunks)
-                    except Exception as e:
-                         print(f"[RAG] Failed to read {filepath}: {e}")
+                        # Store the absolute path in the source information
+                        for chunk_id, chunk in zip(ids, chunks):
+                            self.chunk_map[str(chunk_id)] = f"[Source: {filepath}] {chunk}"
+                        total_files += 1
+                        total_chunks += len(chunks)
+            except Exception as e:
+                print(f"[RAG] Failed to read {filepath}: {e}")
                         
         if total_files > 0:
             self.index.write(self.index_file)

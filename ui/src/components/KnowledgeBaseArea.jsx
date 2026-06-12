@@ -14,36 +14,58 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
   const processFile = async (file) => {
     const uid = `${file.name}-${Date.now()}`;
 
-    setUploadQueue(q => [...q, { uid, name: file.name, stage: 1, status: 'uploading', message: 'Membaca dokumen...' }]);
+    setUploadQueue(q => [...q, { uid, name: file.name, progress: 0, status: 'uploading', message: 'Mengunggah file...' }]);
 
     const updateEntry = (update) =>
       setUploadQueue(q => q.map(e => e.uid === uid ? { ...e, ...update } : e));
 
-    // Animated stage delays
-    await new Promise(r => setTimeout(r, 700));
-    updateEntry({ stage: 2, message: 'Memecah teks ke chunks...' });
-    await new Promise(r => setTimeout(r, 700));
-    updateEntry({ stage: 3, message: 'Membuat Vector Embeddings...' });
-
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('uid', uid);
 
     try {
       const res = await fetch('/api/rag/upload', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.success) {
-        updateEntry({ stage: 4, status: 'done', message: '✅ Berhasil diindeks' });
-        refreshDocs();
-      } else {
-        updateEntry({ stage: 0, status: 'error', message: `❌ ${data.error}` });
+      if (!data.success) {
+        updateEntry({ status: 'error', message: `❌ ${data.error}` });
+        return;
       }
+      
+      // Start polling status
+      const pollInterval = setInterval(async () => {
+          try {
+              const statusRes = await fetch(`/api/rag/upload-status?uid=${uid}`);
+              const statusData = await statusRes.json();
+              if (statusData.success && statusData.state) {
+                  const s = statusData.state;
+                  updateEntry({ progress: s.progress, status: s.status, message: s.stage_msg });
+                  if (s.status === 'done' || s.status === 'error' || s.status === 'canceled') {
+                      clearInterval(pollInterval);
+                      if (s.status === 'done') refreshDocs();
+                      setTimeout(() => {
+                          setUploadQueue(q => q.filter(e => e.uid !== uid));
+                      }, 4000);
+                  }
+              }
+          } catch (e) {}
+      }, 500);
+
     } catch (err) {
-      updateEntry({ stage: 0, status: 'error', message: '❌ Koneksi gagal' });
-    } finally {
+      updateEntry({ status: 'error', message: '❌ Koneksi gagal' });
       setTimeout(() => {
         setUploadQueue(q => q.filter(e => e.uid !== uid));
       }, 4000);
     }
+  };
+
+  const handleCancelFile = async (uid) => {
+      try {
+          await fetch('/api/rag/upload-cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uid })
+          });
+      } catch (e) {}
   };
 
   const handleFiles = (files) => {
@@ -143,10 +165,20 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
                 <div key={entry.uid} className="bg-[#0a0a0a] border border-[#171717] rounded-xl px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-semibold text-neutral-300 truncate max-w-[60%]">{entry.name}</span>
-                    <span className={`text-[10px] font-bold ${
-                      entry.status === 'done' ? 'text-emerald-400' :
-                      entry.status === 'error' ? 'text-rose-400' : 'text-white'
-                    }`}>{entry.message}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold ${
+                        entry.status === 'done' ? 'text-emerald-400' :
+                        entry.status === 'error' ? 'text-rose-400' : 'text-white'
+                      }`}>{entry.message}</span>
+                      {entry.status === 'uploading' && (
+                        <button 
+                          onClick={() => handleCancelFile(entry.uid)}
+                          className="text-[10px] text-rose-400/80 hover:text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {/* Progress bar */}
                   <div className="w-full bg-neutral-800 rounded-full h-1">
@@ -155,7 +187,7 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
                         entry.status === 'done' ? 'bg-emerald-500' :
                         entry.status === 'error' ? 'bg-rose-500' : 'bg-white500'
                       }`}
-                      style={{ width: `${entry.stage === 0 ? 5 : entry.stage === 1 ? 33 : entry.stage === 2 ? 66 : 100}%` }}
+                      style={{ width: `${entry.progress || 5}%` }}
                     />
                   </div>
                 </div>

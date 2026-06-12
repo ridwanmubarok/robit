@@ -38,6 +38,16 @@ download_state = {
 
 LLAMA_CPP_RELEASE = "b9590"
 
+def has_nvidia_gpu():
+    import os, shutil, platform
+    if shutil.which("nvidia-smi"):
+        return True
+    if platform.system() == "Windows":
+        return os.path.exists(r"C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe")
+    elif platform.system() == "Linux":
+        return os.path.exists("/proc/driver/nvidia") or os.path.exists("/dev/nvidia0")
+    return False
+
 @router.get("/api/setup/hardware")
 async def get_hardware_info():
     os_name = f"{platform.system()} {platform.machine()}"
@@ -48,13 +58,13 @@ async def get_hardware_info():
     
     if platform.system() == "Windows":
         recommended_engine = "Vulkan"
-        if shutil.which("nvidia-smi"):
+        if has_nvidia_gpu():
             recommended_engine = "CUDA"
     elif platform.system() == "Darwin":
         recommended_engine = "Metal"
     elif platform.system() == "Linux":
         recommended_engine = "Vulkan"
-        if shutil.which("nvidia-smi"):
+        if has_nvidia_gpu():
             recommended_engine = "CUDA"
         
     free_ram_gb = round(psutil.virtual_memory().available / (1024**3), 1)

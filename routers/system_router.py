@@ -444,24 +444,40 @@ async def generate_planning_endpoint(request: Request):
             "error": f"Gagal men-generate coding plan: {str(e)}"
         }
 
-@router.post("/api/planning/index-codebase")
-async def index_codebase_endpoint(request: Request):
-    body = await request.json()
-    target_dirs = body.get("target_dirs", [])
+import threading
+
+indexing_state = {
+    "status": "idle", # idle, indexing, done, error, canceled
+    "progress": 0.0,
+    "current_file": 0,
+    "total_files": 0,
+    "message": "",
+    "cancel": False
+}
+
+def codebase_indexing_thread(target_dirs, workspace_root):
+    global indexing_state
     
     try:
         from services.rag_service import get_codebase_rag_engine
-        import asyncio
         db = get_codebase_rag_engine()
         
         # Clear the index first to index the fresh set of project folders
         db.clear()
         
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
-        
         indexed_count = 0
         total_msg = []
         
+        def progress_cb(current, total, msg):
+            indexing_state["current_file"] = current
+            indexing_state["total_files"] = total
+            if total > 0:
+                indexing_state["progress"] = min(100.0, (current / total) * 100)
+            indexing_state["message"] = msg
+            
+        def check_cancel_cb():
+            return indexing_state["cancel"]
+            
         for tdir in target_dirs:
             tdir = tdir.strip()
             if not tdir:
@@ -474,24 +490,70 @@ async def index_codebase_endpoint(request: Request):
                 resolved_dir = os.path.abspath(os.path.join(workspace_root, tdir))
                 
             if os.path.exists(resolved_dir) and os.path.isdir(resolved_dir):
-                result_msg = await asyncio.to_thread(db.ingest_workspace, resolved_dir)
+                result_msg = db.ingest_workspace(resolved_dir, progress_callback=progress_cb, check_cancel=check_cancel_cb)
                 total_msg.append(f"{os.path.basename(resolved_dir)}: {result_msg}")
                 indexed_count += 1
+                if check_cancel_cb():
+                    break
             else:
                 total_msg.append(f"{tdir}: Direktori tidak ditemukan.")
                 
-        if indexed_count == 0:
-            return {"success": False, "error": "Tidak ada direktori valid yang berhasil diindeks."}
+        if check_cancel_cb():
+            indexing_state["status"] = "canceled"
+            indexing_state["message"] = "Indexing canceled by user."
+            return
             
-        return {
-            "success": True,
-            "message": " | ".join(total_msg)
-        }
+        if indexed_count == 0:
+            indexing_state["status"] = "error"
+            indexing_state["message"] = "Tidak ada direktori valid yang berhasil diindeks."
+            return
+            
+        indexing_state["status"] = "done"
+        indexing_state["progress"] = 100.0
+        indexing_state["message"] = " | ".join(total_msg)
+        
     except Exception as e:
-        return {
-            "success": False,
-            "error": f"Gagal mengindeks codebase: {str(e)}"
-        }
+        indexing_state["status"] = "error"
+        indexing_state["message"] = str(e)
+
+
+@router.post("/api/planning/index-codebase")
+async def index_codebase_endpoint(request: Request):
+    global indexing_state
+    
+    if indexing_state["status"] == "indexing":
+        return {"success": False, "error": "Indexing is already running."}
+        
+    body = await request.json()
+    target_dirs = body.get("target_dirs", [])
+    
+    workspace_root = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
+    
+    indexing_state["status"] = "indexing"
+    indexing_state["progress"] = 0.0
+    indexing_state["current_file"] = 0
+    indexing_state["total_files"] = 0
+    indexing_state["message"] = "Starting..."
+    indexing_state["cancel"] = False
+    
+    thread = threading.Thread(target=codebase_indexing_thread, args=(target_dirs, workspace_root))
+    thread.daemon = True
+    thread.start()
+    
+    return {"success": True, "message": "Indexing started in background."}
+
+@router.get("/api/planning/index-status")
+async def index_codebase_status():
+    global indexing_state
+    return indexing_state
+
+@router.post("/api/planning/index-cancel")
+async def index_codebase_cancel():
+    global indexing_state
+    if indexing_state["status"] == "indexing":
+        indexing_state["cancel"] = True
+        return {"success": True, "message": "Cancellation requested."}
+    return {"success": False, "error": "No active indexing job."}
 
 @router.post("/api/planning/detect-files")
 async def detect_files_endpoint(request: Request):
