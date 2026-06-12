@@ -123,24 +123,49 @@ async def prewarm_kv_cache():
         state.status = "Ready"
 
 def start_engine():
+    import json
+    # Dynamically read GPU_MODE and GPU_BACKEND
+    gpu_mode = GPU_MODE
+    gpu_backend = GPU_BACKEND
+    config_path = os.path.join(ROBIT_DATA_DIR, "config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                cfg = json.load(f)
+                gpu_mode = str(cfg.get("USE_GPU", "false")).lower() == "true"
+                gpu_backend = cfg.get("GPU_BACKEND", "vulkan").lower()
+        except Exception:
+            pass
+
+    if gpu_mode:
+        if gpu_backend == "cuda":
+            default_dir = os.path.join(ROBIT_DATA_DIR, "bin-cuda")
+        elif gpu_backend == "metal":
+            default_dir = os.path.join(ROBIT_DATA_DIR, "bin-metal")
+        else:
+            default_dir = os.path.join(ROBIT_DATA_DIR, "bin-vulkan")
+        current_engine_path = os.getenv("GPU_ENGINE_PATH", os.path.join(default_dir, f"llama-server{EXT}"))
+    else:
+        current_engine_path = os.getenv("CPU_ENGINE_PATH", os.path.join(ROBIT_DATA_DIR, "bin", f"llama-server{EXT}"))
+
     model_path = db_service.get_setting("active_model", os.getenv("MODEL_PATH", os.path.join("models", "model.gguf")))
     
     # Resolve model path: try absolute first, then relative to ~/.robit/
     if not os.path.isabs(model_path):
         model_path = os.path.join(ROBIT_DATA_DIR, model_path)
     
-    if not os.path.exists(ENGINE_PATH):
-        err = f"Error: Engine not found at {ENGINE_PATH}"
+    if not os.path.exists(current_engine_path):
+        err = f"Error: Engine not found at {current_engine_path}"
         state.logs.append(err)
         return
 
     cmd = [
-        ENGINE_PATH, "-m", model_path, "--host", LLM_HOST, "--port", str(LLM_PORT),
+        current_engine_path, "-m", model_path, "--host", LLM_HOST, "--port", str(LLM_PORT),
         "-c", str(db_service.get_setting("context_size", CONTEXT_SIZE)), 
         "-t", str(THREADS), "-b", BATCH_SIZE, "-ub", UBATCH_SIZE, "--no-webui",
     ]
 
-    if GPU_MODE:
+    if gpu_mode:
         cmd += ["-ngl", GPU_LAYERS, "-fa", FLASH_ATTENTION, "--parallel", GPU_PARALLEL, "--mmap"]
     else:
         cmd += ["-ngl", "0", "-fa", FLASH_ATTENTION, "-ctk", KV_QUANT, "-ctv", KV_QUANT, "--mmap", "--no-warmup"]

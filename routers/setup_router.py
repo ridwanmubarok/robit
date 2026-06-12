@@ -181,6 +181,10 @@ def download_engine_thread(engine_type: str):
         if os.path.exists(bin_path) and os.name != "nt":
             os.chmod(bin_path, 0o755)
             
+        from services import llm_service
+        llm_service.stop_engine()
+        llm_service.start_engine()
+        
         download_state["engine"]["status"] = "done"
         download_state["engine"]["progress"] = 100.0
     except Exception as e:
@@ -234,8 +238,10 @@ def import_model_thread(source_path: str, dest_path: str, model_name: str):
                 if total_size > 0:
                     download_state["model"]["progress"] = min(100.0, (copied / total_size) * 100)
         
-        from services import db_service
+        from services import db_service, llm_service
         db_service.set_setting("active_model", os.path.join("models", model_name))
+        llm_service.stop_engine()
+        llm_service.start_engine()
         download_state["model"]["status"] = "done"
         download_state["model"]["progress"] = 100.0
     except Exception as e:
@@ -259,8 +265,10 @@ async def start_model_import(request: Request):
     dest_path = os.path.join(models_dir, model_name)
     
     if os.path.exists(dest_path):
-        from services import db_service
+        from services import db_service, llm_service
         db_service.set_setting("active_model", os.path.join("models", model_name))
+        llm_service.stop_engine()
+        llm_service.start_engine()
         download_state["model"]["status"] = "done"
         download_state["model"]["progress"] = 100.0
         return {"success": True, "message": "Model already exists"}
