@@ -13,6 +13,7 @@ fi
 
 echo "[1/4] Mengaktifkan virtual environment & install dependencies..."
 source venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 pip install pyinstaller
 
