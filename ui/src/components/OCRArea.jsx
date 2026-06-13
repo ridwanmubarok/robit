@@ -7,6 +7,7 @@ export default function OCRArea() {
     const [resultText, setResultText] = useState("");
     const [dragActive, setDragActive] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const [formatTarget, setFormatTarget] = useState("Markdown / Teks Biasa");
 
     const handleFileProcess = async (file) => {
         if (!file) return;
@@ -66,7 +67,7 @@ export default function OCRArea() {
         setErrorMessage("");
         
         try {
-            const prompt = `Tolong rapihkan dan format teks hasil OCR berikut agar mudah dibaca, perbaiki kesalahan ejaan jika ada, susun menjadi paragraf atau list yang benar. Berikan HANYA hasil teks yang sudah dirapihkan, tanpa pengantar atau penutup:\n\n${resultText}`;
+            const prompt = `Tolong rapihkan dan format teks hasil OCR berikut ke dalam bentuk ${formatTarget}. Perbaiki kesalahan ejaan jika ada. Berikan HANYA hasil kode/teks dalam format ${formatTarget} murni, tanpa pengantar, tanpa penjelasan, dan tanpa markdown backticks:\n\n${resultText}`;
             
             setResultText(""); // Clear text to show streaming
             const response = await fetch('/v1/chat/completions', {
@@ -184,7 +185,18 @@ export default function OCRArea() {
                 <div className="bg-[#0a0a0a]/40 border border-[#171717] rounded-2xl flex flex-col overflow-hidden">
                     <div className="px-5 py-4 border-b border-[#171717] flex items-center justify-between bg-[#0a0a0a]/80 shrink-0">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Result Text</h3>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
+                            <select
+                                value={formatTarget}
+                                onChange={(e) => setFormatTarget(e.target.value)}
+                                disabled={isExtracting || isFormatting}
+                                className="bg-[#171717] hover:bg-neutral-800 border border-neutral-700 text-neutral-300 text-[11px] font-semibold rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500 transition-colors"
+                            >
+                                <option value="Markdown / Teks Biasa">Auto / Text</option>
+                                <option value="JSON struktur data valid">JSON</option>
+                                <option value="XML struktur data valid">XML</option>
+                                <option value="tabel CSV">CSV</option>
+                            </select>
                             <button 
                                 onClick={handleFormatAI}
                                 disabled={!resultText || isExtracting || isFormatting}

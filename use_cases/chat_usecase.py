@@ -59,7 +59,11 @@ async def prepare_chat_payload(body: dict):
         "temperature": temperature,
         "top_p": top_p,
         "stream": True,
-        "cache_prompt": True
+        "cache_prompt": True,
+        "frequency_penalty": 0.5,
+        "presence_penalty": 0.2,
+        "repeat_penalty": 1.15,
+        "stop": ["<|eot_id|>", "<|im_end|>", "</s>", "<|end_of_text|>", "User:", "\nuser", "\nYou", "\n<|user|>"]
     }
     
     return payload

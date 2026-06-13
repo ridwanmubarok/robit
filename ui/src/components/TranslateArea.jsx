@@ -88,6 +88,34 @@ export default function TranslateArea() {
         }
     };
 
+    const fileInputRef = React.useRef(null);
+    const [isExtracting, setIsExtracting] = useState(false);
+
+    const handleFileExtract = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setIsExtracting(true);
+        setError("");
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const res = await fetch('/api/extract', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                setSourceText(data.text);
+            } else {
+                setError(data.error || "Gagal mengekstrak teks dari dokumen.");
+            }
+        } catch(err) {
+            setError("Koneksi gagal saat mengunggah dokumen.");
+        } finally {
+            setIsExtracting(false);
+            e.target.value = '';
+        }
+    };
+
     return (
         <section id="tranneutral-view" className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto custom-scrollbar p-6 space-y-6">
             {/* Header info */}
@@ -107,21 +135,43 @@ export default function TranslateArea() {
                             <span className="w-1.5 h-1.5 rounded-full bg-white400"></span>
                             <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">From</span>
                         </div>
-                        <select 
-                            value={sourceLang}
-                            onChange={(e) => setSourceLang(e.target.value)}
-                            className="bg-[#1f2937] border border-neutral-700/60 rounded-xl text-xs font-semibold text-neutral-200 px-3 py-1.5 focus:ring-1 focus:ring-white/50 outline-none"
-                        >
-                            {sourceLanguages.map(lang => (
-                                <option key={lang.code} value={lang.code}>{lang.name}</option>
-                            ))}
-                        </select>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="file" 
+                                ref={fileInputRef}
+                                className="hidden" 
+                                accept=".txt,.md,.json,.pdf,.csv,.doc,.docx"
+                                onChange={handleFileExtract}
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isExtracting}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#1f2937] hover:bg-[#2e3e56] text-neutral-300 hover:text-white transition-all disabled:opacity-50 border border-neutral-700/60"
+                                title="Upload Document"
+                            >
+                                {isExtracting ? (
+                                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                ) : (
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                )}
+                                <span>{isExtracting ? "Extracting..." : "Document"}</span>
+                            </button>
+                            <select 
+                                value={sourceLang}
+                                onChange={(e) => setSourceLang(e.target.value)}
+                                className="bg-[#1f2937] border border-neutral-700/60 rounded-xl text-xs font-semibold text-neutral-200 px-3 py-1.5 focus:ring-1 focus:ring-white/50 outline-none"
+                            >
+                                {sourceLanguages.map(lang => (
+                                    <option key={lang.code} value={lang.code}>{lang.name}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <textarea
                         value={sourceText}
                         onChange={(e) => setSourceText(e.target.value)}
-                        placeholder="Type or paste text here to translate..."
+                        placeholder="Type or paste text here to translate, or upload a document to extract text..."
                         rows="6"
                         className="w-full bg-transparent text-sm text-neutral-100 placeholder-neutral-500 resize-none outline-none focus:outline-none custom-scrollbar leading-relaxed"
                     ></textarea>

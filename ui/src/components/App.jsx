@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import Sidebar from './Sidebar';
@@ -40,6 +40,13 @@ function App() {
   const [isFirstLaunch, setIsFirstLaunch] = useState(false);
   const [isLoadingSetup, setIsLoadingSetup] = useState(true);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: "", message: "", onConfirm: null });
+  const abortControllerRef = useRef(null);
+
+  const handleStopGenerating = () => {
+      if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+      }
+  };
 
   useEffect(() => {
     fetch('/api/setup/status')
@@ -228,9 +235,11 @@ function App() {
     let completionTokens = null;
 
     try {
+      abortControllerRef.current = new AbortController();
       const response = await fetch('/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           messages: [{ role: "system", content: systemPersona }, ...msgs],
           stream: true,
@@ -410,6 +419,13 @@ function App() {
       }
       
     } catch(err) {
+      if (err.name === 'AbortError') {
+          msgs.push({ role: "assistant", content: fullAIResponse + " 🛑 [Dihentikan oleh pengguna]" });
+          const updatedSessions = { ...sessions, [activeSessionId]: { ...currentSession, messages: msgs, updated_at: Date.now() } };
+          saveSession({ activeId: activeSessionId, sessions: updatedSessions });
+          setIsGenerating(false);
+          return;
+      }
       console.error(err);
       msgs.push({ role: "assistant", content: "⚠️ Error: Connection to Engine failed." });
       
@@ -568,11 +584,18 @@ function App() {
                 messages={activeMessages} 
                 isGenerating={isGenerating} 
                 onSend={handleSendMessage}
+                onStop={handleStopGenerating}
                 streamingMsg={streamingMsg}
                 toolStatus={toolStatus}
                 chatMode={chatMode}
                 setChatMode={setChatMode}
                 streamingTps={streamingTps}
+                
+                sessions={historySessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={setActiveSessionId}
+                onNewSession={handleNewSession}
+                onDeleteSession={requestDeleteSession}
               />
             } />
             <Route path="/rag" element={

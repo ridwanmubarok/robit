@@ -69,75 +69,7 @@ export default function Sidebar({
 
             {/* Dynamic Content based on activeView */}
             <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
-                {activeView === 'chat' && (
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between px-1 mb-4">
-                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">History Sessions</span>
-                            <button onClick={onNewSession} className="text-neutral-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded" title="New Session">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                            </button>
-                        </div>
-                        <div className="space-y-1">
-                            {Object.entries(sessions || {})
-                              .sort(([, a], [, b]) => (b.updated_at || 0) - (a.updated_at || 0))
-                              .map(([id, s]) => {
-                                const isActive = id === activeSessionId;
-                                return (
-                                    <div key={id} className="group flex items-center relative">
-                                        <button 
-                                            onClick={() => onSelectSession(id)}
-                                            className={`flex-1 text-left px-3 py-2 rounded-lg text-sm font-medium truncate transition-all ${isActive ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'}`}
-                                        >
-                                            {s.title || 'New Session'}
-                                        </button>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); onDeleteSession(id, s.title); }}
-                                            className={`absolute right-2 p-1.5 rounded-md text-neutral-500 hover:text-white hover:bg-neutral-700 transition-colors opacity-0 group-hover:opacity-100 ${isActive ? 'opacity-100' : ''}`}
-                                            title="Delete Session"
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                            {Object.values(sessions || {}).length === 0 && (
-                                <div className="text-xs text-neutral-500 text-center py-4 px-2">No history. Click + to start new chat.</div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {activeView === 'rag' && (
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between px-1 mb-4">
-                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Active Knowledge Base</span>
-                        </div>
-                        <div className="space-y-2">
-                            {kbDocs.map((doc) => (
-                                <div key={doc.filename} className={`bg-neutral-900 border border-neutral-700 rounded-lg p-2.5 flex items-start gap-2.5 group ${!doc.active ? 'opacity-50' : ''}`}>
-                                    <div className="mt-0.5">
-                                        {doc.filename.endsWith('.pdf') ? (
-                                            <svg className="w-4 h-4 text-rose-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>
-                                        ) : doc.filename.match(/\.(png|jpe?g|gif)$/i) ? (
-                                            <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                        ) : (
-                                            <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-[11px] font-medium text-neutral-300 truncate" title={doc.filename}>
-                                            {doc.filename} {doc.active ? '' : '(Inactive)'}
-                                        </div>
-                                        <div className="text-[9px] text-neutral-500 mt-0.5">{doc.upload_time}</div>
-                                    </div>
-                                </div>
-                            ))}
-                            {kbDocs.length === 0 && (
-                                <div className="text-xs text-neutral-600 text-center py-4 px-2">No documents indexed in RAG workspace.</div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                {/* RAG Knowledge Base list has been moved to KnowledgeBaseArea.jsx */}
             </div>
 
             {/* Bottom Menu Items */}

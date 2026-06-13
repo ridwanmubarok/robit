@@ -10,6 +10,8 @@ import time
 import zipfile
 import shutil
 from pathlib import Path
+import httpx
+import asyncio
 
 router = APIRouter()
 
@@ -349,3 +351,81 @@ async def factory_reset():
     download_state["model"] = {"status": "idle", "progress": 0.0, "total_mb": 0.0, "downloaded_mb": 0.0, "error": ""}
     
     return {"success": True, "message": "Factory reset complete"}
+
+@router.get("/api/setup/whichllm-dynamic")
+async def whichllm_dynamic():
+    free_ram_gb = round(psutil.virtual_memory().available / (1024**3), 1)
+    ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
+
+    url = "https://huggingface.co/api/models?search=gguf&sort=downloads&direction=-1&limit=10"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=10)
+            resp.raise_for_status()
+            models = resp.json()
+            
+            recommendations = []
+            
+            for m in models:
+                repo_id = m["id"]
+                tree_url = f"https://huggingface.co/api/models/{repo_id}/tree/main"
+                tree_resp = await client.get(tree_url, timeout=10)
+                
+                if tree_resp.status_code == 200:
+                    tree = tree_resp.json()
+                    # Filter for known good quants to avoid listing 100 files
+                    good_quants = ["Q4_K_M", "Q5_K_M", "Q8_0"]
+                    
+                    for item in tree:
+                        fname = item.get("path", "")
+                        if fname.endswith(".gguf") and "size" in item:
+                            # Only consider files that contain one of our preferred quants
+                            # to keep the list clean, or just take the best 2 per repo
+                            if not any(q in fname.upper() for q in good_quants):
+                                continue
+                                
+                            size_gb = item["size"] / (1024**3)
+                            required_ram = size_gb + 2.0  # 2GB for context and overhead
+                            
+                            if required_ram <= free_ram_gb:
+                                fit = "Sangat Cocok (Muat di Free RAM)"
+                                score = 100
+                            elif required_ram <= ram_gb:
+                                fit = "Cukup (Perlu tutup aplikasi lain)"
+                                score = 80
+                            else:
+                                fit = "Berat (Akan lambat / memakai Swap disk)"
+                                score = 40
+                                
+                            recommendations.append({
+                                "repo": repo_id,
+                                "filename": fname,
+                                "size_gb": round(size_gb, 1),
+                                "required_ram": round(required_ram, 1),
+                                "fit": fit,
+                                "score": score,
+                                "downloads": m.get("downloads", 0)
+                            })
+                            
+            # Sort by fit score (descending), then downloads
+            recommendations.sort(key=lambda x: (x["score"], x["downloads"]), reverse=True)
+            
+            # Filter top 2 quants per repo
+            final_recs = []
+            repo_counts = {}
+            for r in recommendations:
+                c = repo_counts.get(r["repo"], 0)
+                if c < 2:
+                    final_recs.append(r)
+                    repo_counts[r["repo"]] = c + 1
+                    
+            return {
+                "success": True,
+                "free_ram_gb": free_ram_gb,
+                "ram_gb": ram_gb,
+                "recommendations": final_recs[:15]
+            }
+            
+    except Exception as e:
+        return {"success": False, "error": str(e)}

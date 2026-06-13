@@ -150,7 +150,22 @@ const ToolResultItem = ({ part }) => {
     );
 };
 
-export default function ChatArea({ messages, isGenerating, onSend, streamingMsg, toolStatus, chatMode = "all", setChatMode, streamingTps = 0 }) {
+export default function ChatArea({ 
+  messages, 
+  isGenerating, 
+  onSend, 
+  onStop,
+  streamingMsg, 
+  toolStatus, 
+  chatMode = "all", 
+  setChatMode, 
+  streamingTps = 0,
+  sessions,
+  activeSessionId,
+  onSelectSession,
+  onNewSession,
+  onDeleteSession
+}) {
   const [inputText, setInputText] = useState("");
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -240,9 +255,46 @@ export default function ChatArea({ messages, isGenerating, onSend, streamingMsg,
     return () => document.removeEventListener('click', handleCopy);
   }, []);
 
-  return (
-    <section id="chat-view" className="flex-1 flex h-full relative">
-        <div className="flex-1 flex flex-col h-full bg-transparent">
+    return (
+        <section id="chat-view" className="flex-1 flex h-full relative w-full overflow-hidden">
+            {/* Embedded History Sessions Sidebar */}
+            <aside className="w-64 bg-[#0a0a0a] border-r border-neutral-800 flex flex-col h-full shrink-0 relative z-20">
+                <div className="p-4 flex items-center justify-between border-b border-neutral-800 shrink-0">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">History Sessions</span>
+                    <button onClick={onNewSession} className="text-neutral-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded" title="New Session">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+                    {Object.entries(sessions || {})
+                      .sort(([, a], [, b]) => (b.updated_at || 0) - (a.updated_at || 0))
+                      .map(([id, s]) => {
+                        const isActive = id === activeSessionId;
+                        return (
+                            <div key={id} className="group flex items-center relative">
+                                <button 
+                                    onClick={() => onSelectSession(id)}
+                                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm font-medium truncate transition-all ${isActive ? 'bg-neutral-800 text-white border border-white/10 shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-neutral-900 border border-transparent'}`}
+                                >
+                                    {s.title || 'New Session'}
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onDeleteSession(id, s.title); }}
+                                    className={`absolute right-2 p-1.5 rounded-md text-neutral-500 hover:text-white hover:bg-neutral-700 transition-colors opacity-0 group-hover:opacity-100 ${isActive ? 'opacity-100' : ''}`}
+                                    title="Delete Session"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                </button>
+                            </div>
+                        );
+                    })}
+                    {Object.values(sessions || {}).length === 0 && (
+                        <div className="text-xs text-neutral-500 text-center py-4 px-2">No history. Click + to start new chat.</div>
+                    )}
+                </div>
+            </aside>
+
+            <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
             {/* Chat Header info */}
             <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-6 bg-transparent shrink-0">
                 <div className="flex items-center gap-1.5 bg-[#0a0a0a]/60 p-1 rounded-xl border border-neutral-800">
@@ -476,17 +528,29 @@ export default function ChatArea({ messages, isGenerating, onSend, streamingMsg,
                                 </span>
                             </div>
                             
-                            {/* Send Button */}
-                            <button 
-                                onClick={handleSendSubmit}
-                                disabled={isGenerating || isExtracting || (!inputText.trim() && attachedFiles.length === 0)}
-                                className=" bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:grayscale text-white px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-white/10 active:scale-95 transition-all"
-                            >
-                                Send
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                                </svg>
-                            </button>
+                            {/* Send / Stop Button */}
+                            {isGenerating ? (
+                                <button 
+                                    onClick={onStop}
+                                    className=" bg-rose-600 hover:bg-rose-500 text-white px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+                                >
+                                    Stop
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                        <rect x="7" y="7" width="10" height="10" rx="2" />
+                                    </svg>
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={handleSendSubmit}
+                                    disabled={isExtracting || (!inputText.trim() && attachedFiles.length === 0)}
+                                    className=" bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:grayscale text-white px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-white/10 active:scale-95 transition-all"
+                                >
+                                    Send
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                                    </svg>
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

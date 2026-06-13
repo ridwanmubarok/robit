@@ -193,8 +193,12 @@ with sync_playwright() as p:
     payload = {
         "messages": messages,
         "temperature": 0.2,
-        "max_tokens": 4096,
-        "stream": True
+        "max_tokens": 2048, # Reduced from 4096 to fail faster if looping
+        "stream": True,
+        "frequency_penalty": 0.5,
+        "presence_penalty": 0.2,
+        "repeat_penalty": 1.15,
+        "stop": ["<|eot_id|>", "<|im_end|>", "</s>", "<|end_of_text|>", "User:", "\nuser", "\nYou", "\n<|user|>"]
     }
     
     generated_code = ""

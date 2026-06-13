@@ -84,7 +84,39 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
   };
 
   return (
-    <section id="rag-view" className="flex-1 flex flex-col h-full bg-transparent p-6 space-y-6 overflow-y-auto custom-scrollbar">
+    <section id="rag-view" className="flex-1 flex h-full relative w-full overflow-hidden">
+      {/* Embedded Active Knowledge Base Sidebar */}
+      <aside className="w-64 bg-[#0a0a0a] border-r border-neutral-800 flex flex-col h-full shrink-0 relative z-20">
+        <div className="p-4 flex items-center justify-between border-b border-neutral-800 shrink-0">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Active Knowledge Base</span>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+          {kbDocs.map((doc) => (
+            <div key={doc.filename} className={`bg-[#000000]/40 border border-[#171717] rounded-lg p-2.5 flex items-start gap-2.5 group ${!doc.active ? 'opacity-50' : ''}`}>
+              <div className="mt-0.5">
+                {doc.filename.endsWith('.pdf') ? (
+                  <svg className="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 3v6h6" /></svg>
+                ) : doc.filename.match(/\.(png|jpe?g|gif)$/i) ? (
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                ) : (
+                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-medium text-neutral-300 truncate" title={doc.filename}>
+                  {doc.filename} {doc.active ? '' : '(Inactive)'}
+                </div>
+                <div className="text-[9px] text-neutral-500 mt-0.5">{doc.upload_time}</div>
+              </div>
+            </div>
+          ))}
+          {kbDocs.length === 0 && (
+            <div className="text-xs text-neutral-600 text-center py-4 px-2">No documents indexed in RAG workspace.</div>
+          )}
+        </div>
+      </aside>
+
+      <div className="flex-1 flex flex-col h-full bg-transparent p-6 space-y-6 overflow-y-auto custom-scrollbar">
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -134,7 +166,7 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
             </svg>
           </div>
           <h4 className="text-sm font-bold text-neutral-200 group-hover:text-white transition-colors">
-            {dragActive ? 'Lepas file di sini' : 'Klik atau Seret File'}
+            {dragActive ? 'Drop files here' : 'Click or drag files to upload'}
           </h4>
           <p className="text-[11px] text-neutral-500 mt-1.5">
             Select multiple files at once — PDF, TXT, MD, JSON, CSV, code
@@ -154,7 +186,7 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
               Pipeline Ingestion & Vectorization
             </h3>
             <p className="text-[11px] text-neutral-500 mb-4">
-              {uploadQueue.length > 0 ? `Memproses ${uploadQueue.length} file...` : 'Menunggu file...'}
+              {uploadQueue.length > 0 ? `Processing ${uploadQueue.length} files...` : 'Waiting for files...'}
             </p>
           </div>
 
@@ -219,11 +251,11 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
           <table className="w-full text-left text-xs text-neutral-300">
             <thead className="bg-[#0a0a0a]/80 uppercase text-[10px] tracking-wider text-neutral-500 sticky top-0">
               <tr>
-                <th className="px-6 py-3.5">Nama File</th>
+                <th className="px-6 py-3.5">File Name</th>
                 <th className="px-6 py-3.5">Format</th>
                 <th className="px-6 py-3.5">Upload</th>
                 <th className="px-6 py-3.5 text-center">Status</th>
-                <th className="px-6 py-3.5 text-right">Aksi</th>
+                <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#171717]/40">
@@ -289,6 +321,7 @@ export default function KnowledgeBaseArea({ kbDocs, onDeleteKBDoc, onToggleKBDoc
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </section>
   );

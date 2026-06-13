@@ -2,33 +2,23 @@ import React, { useState, useEffect } from 'react';
 
 export default function WhichLLMArea() {
     const [hwInfo, setHwInfo] = useState(null);
+    const [dynamicInfo, setDynamicInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetch("/api/setup/hardware")
-            .then(res => res.json())
-            .then(data => {
-                setHwInfo(data);
-                setIsLoading(false);
-            })
-            .catch(() => setIsLoading(false));
+        Promise.all([
+            fetch("/api/setup/hardware").then(res => res.json()),
+            fetch("/api/setup/whichllm-dynamic").then(res => res.json())
+        ])
+        .then(([hwData, dynamicData]) => {
+            setHwInfo(hwData);
+            if (dynamicData.success) {
+                setDynamicInfo(dynamicData);
+            }
+            setIsLoading(false);
+        })
+        .catch(() => setIsLoading(false));
     }, []);
-
-    const getRecommendations = (freeRam, totalRam) => {
-        const recs = [];
-        if (freeRam >= 14 || totalRam >= 32) {
-            recs.push({ model: "32B Models (Q4_K_M)", memory: "~20GB", note: "Best for complex reasoning, but requires huge RAM/VRAM." });
-        }
-        if (freeRam >= 9 || totalRam >= 16) {
-            recs.push({ model: "14B Models (Q4_K_M) - e.g. Qwen2.5-Coder-14B", memory: "~9.5GB", note: "Excellent balance of speed and deep coding knowledge." });
-        }
-        if (freeRam >= 5 || totalRam >= 8) {
-            recs.push({ model: "7B/8B Models (Q4_K_M or Q5_K_M) - e.g. Qwen2.5-Coder-7B", memory: "~5.5GB", note: "The sweet spot for local hardware. Extremely fast and highly capable." });
-        }
-        recs.push({ model: "1B/3B Models (Q8_0) - e.g. Qwen2.5-Coder-3B", memory: "~2.5GB", note: "Lightning fast, runs on almost anything. Good for autocomplete." });
-        
-        return recs;
-    };
 
     return (
         <section id="whichllm-view" className="flex-1 flex flex-col h-full bg-transparent p-6 space-y-6 overflow-y-auto custom-scrollbar">
@@ -46,7 +36,8 @@ export default function WhichLLMArea() {
                 {isLoading ? (
                     <div className="text-center py-20 flex flex-col items-center justify-center">
                         <svg className="animate-spin h-8 w-8 text-white mb-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span className="text-white font-bold uppercase tracking-wider text-xs">Detecting Hardware...</span>
+                        <span className="text-white font-bold uppercase tracking-wider text-xs mb-2">Analyzing HuggingFace Hub...</span>
+                        <span className="text-neutral-500 text-[10px]">Fetching real-time top GGUF models & calculating hardware fit.</span>
                     </div>
                 ) : hwInfo ? (
                     <div className="space-y-8">
@@ -73,19 +64,61 @@ export default function WhichLLMArea() {
                             </div>
                         </div>
 
-                        {/* Recommendations Box */}
+                        {/* Dynamic Recommendations Box */}
                         <div>
-                            <h3 className="text-lg font-bold text-white mb-4">Recommended GGUF Models</h3>
+                            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                                Live HuggingFace Recommendations
+                            </h3>
                             <div className="space-y-3">
-                                {getRecommendations(hwInfo.free_ram_gb, hwInfo.ram_gb).map((rec, i) => (
-                                    <div key={i} className="bg-[#0a0a0a]/40 border border-[#171717] rounded-2xl p-5 hover:bg-[#171717]/40 transition-colors">
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                                            <div className="text-base font-bold text-neutral-200">{rec.model}</div>
-                                            <div className="bg-white/10 border border-white/20 text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full w-fit">Requires {rec.memory}</div>
+                                {dynamicInfo && dynamicInfo.recommendations && dynamicInfo.recommendations.map((rec, i) => (
+                                    <div key={i} className="bg-[#0a0a0a]/40 border border-[#171717] rounded-2xl p-5 hover:bg-[#171717]/40 transition-colors flex flex-col gap-3">
+                                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                                            <div>
+                                                <div className="text-sm font-bold text-neutral-400 flex items-center gap-2">
+                                                    {rec.repo.split('/')[0]}
+                                                    <span className="bg-[#1f2937] text-white px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">Top Repo</span>
+                                                </div>
+                                                <div className="text-base font-bold text-white mt-0.5">{rec.repo.split('/')[1]}</div>
+                                                <div className="text-xs text-indigo-400 font-mono mt-1">{rec.filename}</div>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2 shrink-0">
+                                                <div className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold flex items-center gap-1.5 ${
+                                                    rec.score === 100 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                                    rec.score === 80 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                    'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                                }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${
+                                                        rec.score === 100 ? 'bg-emerald-400' :
+                                                        rec.score === 80 ? 'bg-amber-400' :
+                                                        'bg-rose-400'
+                                                    }`}></span>
+                                                    {rec.fit}
+                                                </div>
+                                                <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                                                    <span className="flex items-center gap-1">
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                                        {rec.downloads.toLocaleString()}
+                                                    </span>
+                                                    <span>•</span>
+                                                    <span>File: {rec.size_gb} GB</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className="text-xs text-neutral-400">{rec.note}</p>
+                                        <div className="bg-[#171717]/60 border border-[#262626] rounded-xl p-3 flex items-center gap-3 mt-1">
+                                            <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center shrink-0 border border-neutral-700">
+                                                <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Est. Required RAM</div>
+                                                <div className="text-sm font-black text-white">{rec.required_ram} <span className="text-[10px] text-neutral-400 font-semibold">GB (Incl. Context)</span></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
+                                {(!dynamicInfo || !dynamicInfo.recommendations || dynamicInfo.recommendations.length === 0) && (
+                                    <div className="text-center py-10 text-neutral-500 text-sm">No recommendations found. Please ensure your internet connection is active.</div>
+                                )}
                             </div>
                         </div>
                         

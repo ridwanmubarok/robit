@@ -1048,8 +1048,42 @@ async def get_dashboard_stats():
         return f"{s} {size_name[i]}"
         
     import psutil
+    import platform
+    import time
+    import json
+    
     ram_gb = round(psutil.virtual_memory().used / (1024**3), 1)
     ram_total = round(psutil.virtual_memory().total / (1024**3), 1)
+    ram_percent = psutil.virtual_memory().percent
+    
+    cpu_percent = psutil.cpu_percent(interval=0.1)
+    cpu_cores = psutil.cpu_count(logical=False)
+    cpu_threads = psutil.cpu_count(logical=True)
+    
+    disk_usage = psutil.disk_usage(os.path.abspath(os.sep))
+    disk_total_gb = round(disk_usage.total / (1024**3), 1)
+    disk_used_gb = round(disk_usage.used / (1024**3), 1)
+    disk_percent = disk_usage.percent
+    
+    uptime_seconds = int(time.time() - psutil.boot_time())
+    m, s = divmod(uptime_seconds, 60)
+    h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
+    uptime_str = f"{d}d {h}h {m}m" if d > 0 else f"{h}h {m}m"
+    
+    os_info = f"{platform.system()} {platform.release()}"
+    python_ver = platform.python_version()
+    
+    # Get active sessions count
+    total_sessions = 0
+    history_path = os.path.join(base_dir, "history.json")
+    if os.path.exists(history_path):
+        try:
+            with open(history_path, "r", encoding="utf-8") as f:
+                hist_data = json.load(f)
+                total_sessions = len(hist_data.get("sessions", {}))
+        except:
+            pass
 
     return {
         "success": True,
@@ -1060,5 +1094,16 @@ async def get_dashboard_stats():
         "db_size_raw": db_bytes,
         "db_size": format_size(db_bytes),
         "ram_used_gb": ram_gb,
-        "ram_total_gb": ram_total
+        "ram_total_gb": ram_total,
+        "ram_percent": ram_percent,
+        "cpu_percent": cpu_percent,
+        "cpu_cores": cpu_cores,
+        "cpu_threads": cpu_threads,
+        "disk_total_gb": disk_total_gb,
+        "disk_used_gb": disk_used_gb,
+        "disk_percent": disk_percent,
+        "uptime": uptime_str,
+        "os_info": os_info,
+        "python_ver": python_ver,
+        "total_sessions": total_sessions
     }
