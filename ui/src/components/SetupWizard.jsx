@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
 
 export default function SetupWizard({ onComplete }) {
   const [step, setStep] = useState(0);
@@ -17,7 +15,7 @@ export default function SetupWizard({ onComplete }) {
 
   useEffect(() => {
     if (step === 0) {
-      const isTauri = window.__TAURI_INTERNALS__ || window.__TAURI__ || window.location.protocol.startsWith('tauri');
+      const isTauri = false;
       let isChecking = false;
 
       const checkServer = () => {
@@ -34,9 +32,7 @@ export default function SetupWizard({ onComplete }) {
           })
           .catch(err => {
             if (isTauri) {
-               invoke('read_backend_log')
-                 .then(logs => setServerLogs(logs))
-                 .catch(() => {});
+               // Tauri specific log fetching removed
             }
           })
           .finally(() => {

@@ -15,14 +15,42 @@ permissions:
   contents: write
 
 jobs:
-  # ─────────────────────────────────────────────
-  # STEP 1: Build Python backend for each OS
-  # ─────────────────────────────────────────────
-  build-backend-linux:
-    name: Backend · Linux x64
+  build-ui:
+    name: Build Frontend UI
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+      - name: Install dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Build UI
+        working-directory: ui
+        run: npm run build
+      - name: Upload UI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist/
+          retention-days: 1
+
+  build-portable-linux:
+    name: Portable Web App · Linux x64
+    needs: build-ui
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download UI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist/
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -39,12 +67,13 @@ jobs:
       - name: Build backend
         run: |
           RAPIDOCR_PATH=$(python3 -c "import rapidocr_onnxruntime, os; print(os.path.dirname(rapidocr_onnxruntime.__file__))")
-          pyinstaller --noconfirm --onefile --console \
-            --name "robit-backend-x86_64-unknown-linux-gnu" \
+          pyinstaller --noconfirm --onedir \
+            --name "robit-backend" \
             --add-data "core:core" \
             --add-data "routers:routers" \
             --add-data "services:services" \
             --add-data "use_cases:use_cases" \
+            --add-data "ui/dist:ui/dist" \
             --add-data "$RAPIDOCR_PATH:rapidocr_onnxruntime" \
             --collect-all "rapidocr_onnxruntime" \
             --hidden-import "pyclipper" \
@@ -71,18 +100,37 @@ jobs:
             --hidden-import "bs4" --hidden-import "websockets" --hidden-import "websockets.legacy" --hidden-import "websockets.legacy.server" --collect-all "playwright" \
             main.py
 
+      - name: Package Portable Bundle
+        run: |
+          mkdir ROBIT-Portable-Linux
+          mv dist/robit-backend ROBIT-Portable-Linux/backend
+          echo '#!/bin/bash' > ROBIT-Portable-Linux/Start_ROBIT.sh
+          echo 'DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"' >> ROBIT-Portable-Linux/Start_ROBIT.sh
+          echo 'echo "Starting ROBIT Local Server..."' >> ROBIT-Portable-Linux/Start_ROBIT.sh
+          echo 'sleep 2 && xdg-open "http://127.0.0.1:8000" 2>/dev/null &' >> ROBIT-Portable-Linux/Start_ROBIT.sh
+          echo '"$DIR/backend/robit-backend"' >> ROBIT-Portable-Linux/Start_ROBIT.sh
+          chmod +x ROBIT-Portable-Linux/Start_ROBIT.sh
+          tar -czvf ROBIT-Portable-Linux.tar.gz ROBIT-Portable-Linux/
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: backend-linux-x64
-          path: dist/robit-backend-x86_64-unknown-linux-gnu
+          name: release-linux
+          path: ROBIT-Portable-Linux.tar.gz
           retention-days: 1
 
-  build-backend-windows:
-    name: Backend · Windows x64
+  build-portable-windows:
+    name: Portable Web App · Windows x64
+    needs: build-ui
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download UI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist/
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -100,20 +148,36 @@ jobs:
         shell: pwsh
         run: |
           $RAPIDOCR_PATH = python -c "import rapidocr_onnxruntime, os; print(os.path.dirname(rapidocr_onnxruntime.__file__))"
-          pyinstaller --noconfirm --onefile --console --name "robit-backend-x86_64-pc-windows-msvc" --add-data "core;core" --add-data "routers;routers" --add-data "services;services" --add-data "use_cases;use_cases" "--add-data=$RAPIDOCR_PATH;rapidocr_onnxruntime" --collect-all "rapidocr_onnxruntime" --hidden-import "pyclipper" --hidden-import "shapely" --hidden-import "cv2" --hidden-import "onnxruntime" --hidden-import "yaml" --hidden-import "uvicorn.logging" --hidden-import "uvicorn.loops" --hidden-import "uvicorn.loops.auto" --hidden-import "uvicorn.protocols" --hidden-import "uvicorn.protocols.http" --hidden-import "uvicorn.protocols.http.auto" --hidden-import "uvicorn.protocols.websockets" --hidden-import "uvicorn.protocols.websockets.auto" --hidden-import "uvicorn.lifespan" --hidden-import "uvicorn.lifespan.on" --hidden-import "pydantic" --hidden-import "uvicorn" --hidden-import "fastapi" --hidden-import "sqlite3" --hidden-import "turbovec" --hidden-import "sentence_transformers" --hidden-import "bs4" --hidden-import "websockets" --hidden-import "websockets.legacy" --hidden-import "websockets.legacy.server" --collect-all "playwright" main.py
+          pyinstaller --noconfirm --onedir --name "robit-backend" --add-data "core;core" --add-data "routers;routers" --add-data "services;services" --add-data "use_cases;use_cases" --add-data "ui/dist;ui/dist" "--add-data=$RAPIDOCR_PATH;rapidocr_onnxruntime" --collect-all "rapidocr_onnxruntime" --hidden-import "pyclipper" --hidden-import "shapely" --hidden-import "cv2" --hidden-import "onnxruntime" --hidden-import "yaml" --hidden-import "uvicorn.logging" --hidden-import "uvicorn.loops" --hidden-import "uvicorn.loops.auto" --hidden-import "uvicorn.protocols" --hidden-import "uvicorn.protocols.http" --hidden-import "uvicorn.protocols.http.auto" --hidden-import "uvicorn.protocols.websockets" --hidden-import "uvicorn.protocols.websockets.auto" --hidden-import "uvicorn.lifespan" --hidden-import "uvicorn.lifespan.on" --hidden-import "pydantic" --hidden-import "uvicorn" --hidden-import "fastapi" --hidden-import "sqlite3" --hidden-import "turbovec" --hidden-import "sentence_transformers" --hidden-import "bs4" --hidden-import "websockets" --hidden-import "websockets.legacy" --hidden-import "websockets.legacy.server" --collect-all "playwright" main.py
+
+      - name: Package Portable Bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ROBIT-Portable-Windows
+          Move-Item -Path dist\robit-backend -Destination ROBIT-Portable-Windows\backend
+          $launcher = "@echo off`nstart `"`" `"http://127.0.0.1:8000`"`necho Starting ROBIT Server...`n`"%~dp0backend\robit-backend.exe`""
+          Set-Content -Path ROBIT-Portable-Windows\Start_ROBIT.bat -Value $launcher
+          Compress-Archive -Path ROBIT-Portable-Windows -DestinationPath ROBIT-Portable-Windows.zip
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: backend-windows-x64
-          path: dist/robit-backend-x86_64-pc-windows-msvc.exe
+          name: release-windows
+          path: ROBIT-Portable-Windows.zip
           retention-days: 1
 
-  build-backend-macos:
-    name: Backend · macOS (arm64)
+  build-portable-macos:
+    name: Portable Web App · macOS (arm64)
+    needs: build-ui
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download UI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist/
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -127,15 +191,16 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build backend (arm64)
+      - name: Build backend
         run: |
           RAPIDOCR_PATH=$(python3 -c "import rapidocr_onnxruntime, os; print(os.path.dirname(rapidocr_onnxruntime.__file__))")
-          pyinstaller --noconfirm --onefile --console \
-            --name "robit-backend-aarch64-apple-darwin" \
+          pyinstaller --noconfirm --onedir \
+            --name "robit-backend" \
             --add-data "core:core" \
             --add-data "routers:routers" \
             --add-data "services:services" \
             --add-data "use_cases:use_cases" \
+            --add-data "ui/dist:ui/dist" \
             --add-data "$RAPIDOCR_PATH:rapidocr_onnxruntime" \
             --collect-all "rapidocr_onnxruntime" \
             --hidden-import "pyclipper" \
@@ -162,182 +227,28 @@ jobs:
             --hidden-import "bs4" --hidden-import "websockets" --hidden-import "websockets.legacy" --hidden-import "websockets.legacy.server" --collect-all "playwright" \
             main.py
 
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-macos-arm64
-          path: dist/robit-backend-aarch64-apple-darwin
-          retention-days: 1
-
-  # ─────────────────────────────────────────────
-  # STEP 2: Build Tauri app for each OS
-  # ─────────────────────────────────────────────
-  build-tauri-linux:
-    name: Tauri · Linux (.deb / .AppImage)
-    needs: build-backend-linux
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install system dependencies
+      - name: Package Portable Bundle
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ui/src-tauri
-
-      - name: Install Node dependencies
-        working-directory: ui
-        run: npm ci
-
-      - name: Download backend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-linux-x64
-          path: ui/src-tauri/bin/
-
-      - name: Set backend executable permission
-        run: chmod +x ui/src-tauri/bin/robit-backend-x86_64-unknown-linux-gnu
-
-      - name: Build Tauri (Linux)
-        working-directory: ui
-        run: npm run tauri build -- --bundles deb
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-linux
-          path: |
-            ui/src-tauri/target/release/bundle/deb/*.deb
-          retention-days: 1
-
-  build-tauri-windows:
-    name: Tauri · Windows (.msi / .exe)
-    needs: build-backend-windows
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ui/src-tauri
-
-      - name: Install Node dependencies
-        working-directory: ui
-        run: npm ci
-
-      - name: Download backend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-windows-x64
-          path: ui/src-tauri/bin/
-
-      - name: Build Tauri (Windows)
-        working-directory: ui
-        run: npm run tauri build
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-windows
-          path: |
-            ui/src-tauri/target/release/bundle/msi/*.msi
-            ui/src-tauri/target/release/bundle/nsis/*.exe
-          retention-days: 1
-
-  build-tauri-macos:
-    name: Tauri · macOS (.dmg)
-    needs: build-backend-macos
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
-      - name: Setup Rust (with Apple Silicon target)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ui/src-tauri
-
-      - name: Install Node dependencies
-        working-directory: ui
-        run: npm ci
-
-      - name: Download backend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-macos-arm64
-          path: ui/src-tauri/bin/
-
-      - name: Set backend executable permission
-        run: chmod +x ui/src-tauri/bin/robit-backend-aarch64-apple-darwin
-
-      - name: Build Tauri (macOS)
-        working-directory: ui
-        run: npm run tauri build -- --target aarch64-apple-darwin
-        env:
-          CI: true
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          mkdir ROBIT-Portable-macOS
+          mv dist/robit-backend ROBIT-Portable-macOS/backend
+          echo '#!/bin/bash' > ROBIT-Portable-macOS/Start_ROBIT.command
+          echo 'DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"' >> ROBIT-Portable-macOS/Start_ROBIT.command
+          echo 'echo "Starting ROBIT Local Server..."' >> ROBIT-Portable-macOS/Start_ROBIT.command
+          echo 'sleep 2 && open "http://127.0.0.1:8000" &' >> ROBIT-Portable-macOS/Start_ROBIT.command
+          echo '"$DIR/backend/robit-backend"' >> ROBIT-Portable-macOS/Start_ROBIT.command
+          chmod +x ROBIT-Portable-macOS/Start_ROBIT.command
+          tar -czvf ROBIT-Portable-macOS.tar.gz ROBIT-Portable-macOS/
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-macos
-          path: |
-            ui/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          path: ROBIT-Portable-macOS.tar.gz
           retention-days: 1
 
-  # ─────────────────────────────────────────────
-  # STEP 3: Create GitHub Release
-  # ─────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [build-tauri-linux, build-tauri-windows, build-tauri-macos]
+    needs: [build-portable-linux, build-portable-windows, build-portable-macos]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -348,9 +259,6 @@ jobs:
           pattern: release-*
           merge-multiple: true
           path: release-assets/
-
-      - name: List release assets
-        run: ls -lh release-assets/
 
       - name: Determine release tag
         id: tag
@@ -367,28 +275,25 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: "ROBIT ${{ steps.tag.outputs.tag }}"
           draft: false
-          body_path: release_body.md
           prerelease: false
           generate_release_notes: true
           body: |
-            ## ROBIT ${{ steps.tag.outputs.tag }}
+            ## ROBIT ${{ steps.tag.outputs.tag }} (Portable Web App)
 
             **Privacy-first local AI workspace.**
+            This release transforms ROBIT into a Portable Web Application, resolving previous issues with OS corruption and Antivirus false positives caused by native desktop wrappers.
 
             ### Downloads
-            | Platform | File | Notes |
-            |---|---|---|
-            | Linux | `.AppImage` | Universal, portable |
-            | Linux | `.deb` | Debian/Ubuntu |
-            | Windows | `.msi` | Recommended |
-            | Windows | `.exe` | NSIS installer |
-            | Mac | `.dmg` | Apple Silicon (M1/M2/M3) |
+            | Platform | File |
+            |---|---|
+            | Windows | `ROBIT-Portable-Windows.zip` |
+            | Mac (Apple Silicon) | `ROBIT-Portable-macOS.tar.gz` |
+            | Linux | `ROBIT-Portable-Linux.tar.gz` |
 
-            ### First Run
-            The app will guide you through setup:
-            1. Download the AI Engine (Llama.cpp, ~30 MB)
-            2. Browse and import your `.gguf` model file
-            3. Start chatting locally — no cloud, no data sent out
+            ### How to use
+            1. Extract the downloaded archive.
+            2. Run the `Start_ROBIT` script (`.bat` on Windows, `.command` on Mac, `.sh` on Linux).
+            3. A terminal will open to start the local server, and your default web browser will automatically open ROBIT!
           files: release-assets/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

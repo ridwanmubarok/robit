@@ -27,8 +27,8 @@ const { title } = Astro.props;
             window.fetch = async function(...args) {
                 if (typeof args[0] === 'string') {
                     if (args[0].startsWith('/api') || args[0].startsWith('/v1')) {
-                        const isTauri = window.__TAURI_INTERNALS__ || window.__TAURI__ || window.location.protocol.startsWith('tauri');
-                        if (isTauri || window.location.port !== '4321') {
+                        // Redirect to backend during local Astro dev (port 4321)
+                        if (window.location.port === '4321') {
                             args[0] = 'http://127.0.0.1:8000' + args[0];
                         }
                     }

@@ -52,7 +52,14 @@ app.include_router(scraper_router.router)
 app.include_router(qa_router.router)
 
 # Mount Frontend
-ui_dist = os.path.join(os.path.dirname(__file__), "ui", "dist")
+if getattr(sys, 'frozen', False):
+    # Running as PyInstaller bundle
+    base_dir = sys._MEIPASS
+else:
+    # Running as standard Python script
+    base_dir = os.path.dirname(__file__)
+
+ui_dist = os.path.join(base_dir, "ui", "dist")
 if os.path.exists(ui_dist):
     astro_dist = os.path.join(ui_dist, "_astro")
     if os.path.exists(astro_dist):
@@ -63,4 +70,5 @@ if os.path.exists(ui_dist):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=WEB_PORT)
+    import websockets # Force import for PyInstaller
+    uvicorn.run(app, host="127.0.0.1", port=WEB_PORT, ws="websockets")

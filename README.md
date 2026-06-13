@@ -37,12 +37,27 @@ All models must be in **GGUF** format. You can import them directly from the ROB
 
 ## Installation & Setup
 
-ROBIT is now distributed as a native standalone desktop application. You no longer need to manually configure Python, `.env` files, or use the terminal!
+ROBIT is now distributed as a **Portable Web Application**. You do not need to install Python or deal with OS corruption caused by native installers.
 
-1. **Download the App:** Navigate to the [Releases](https://github.com/ridwanmubarok/robit/releases/latest) page and download the appropriate installer for your OS (`.dmg` for Mac, `.msi` for Windows, or `.AppImage`/`.deb` for Linux).
-2. **Install & Launch:** Open ROBIT on your computer.
-3. **Automated Setup:** On first launch, the app will guide you to download the AI engine (Llama.cpp, ~30 MB) automatically and prompt you to import your downloaded `.gguf` model file.
-4. **Start Chatting:** Your local AI is ready. No internet connection is required for inference, and no data is sent out.
+### Option 1: Portable Release (Recommended)
+1. **Download the App:** Navigate to the [Releases](https://github.com/ridwanmubarok/robit/releases/latest) page and download the portable archive for your OS (`.zip` for Windows, `.tar.gz` for Mac/Linux).
+2. **Extract & Launch:** Extract the folder, then run the `Start_ROBIT` script (`.bat` on Windows, `.command` on Mac, `.sh` on Linux).
+3. **Plug & Play:** A local server will start in the background, and your default web browser will automatically open ROBIT at `http://127.0.0.1:8000`.
+
+### Option 2: Run from Source (For Developers)
+If you prefer to run ROBIT from the source code using Python:
+1. Clone the repository and install requirements: `pip install -r requirements.txt`
+2. **Run Server:** `python robit.py serve` (This builds the UI and starts the backend).
+3. **Run Server (Skip Build):** `python robit.py serve --skip-build`
+4. **Development Mode (Hot-Reload):** `python robit.py dev` (Starts FastAPI and the Astro frontend concurrently with HMR).
+
+---
+
+### First Run & Model Setup
+On first launch, the app will guide you to:
+1. Download the optimized AI engine for your hardware (Llama.cpp).
+2. Import your downloaded `.gguf` model file.
+3. Start chatting locally — no internet required for inference, and your data stays on your machine.
 
 ---
 
