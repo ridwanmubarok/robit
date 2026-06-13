@@ -30,6 +30,7 @@ export default function TranslateArea() {
     const [translatedText, setTranslatedText] = useState("");
     const [sourceLang, setSourceLang] = useState("Auto");
     const [targetLang, setTargetLang] = useState("Indonesian");
+    const [includeReplies, setIncludeReplies] = useState(true);
     const [isTranslating, setIsTranslating] = useState(false);
     const [replies, setReplies] = useState([]);
     const [copiedReplyIdx, setCopiedReplyIdx] = useState(null);
@@ -50,7 +51,8 @@ export default function TranslateArea() {
                 body: JSON.stringify({
                     text: sourceText,
                     source_lang: sourceLang,
-                    target_lang: targetLang
+                    target_lang: targetLang,
+                    include_replies: includeReplies
                 })
             });
             const data = await res.json();
@@ -254,7 +256,16 @@ export default function TranslateArea() {
             </div>
 
             {/* ACTION BUTTON */}
-            <div className="flex justify-center shrink-0">
+            <div className="flex flex-col items-center justify-center shrink-0 space-y-4">
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+                    <input 
+                        type="checkbox" 
+                        checked={includeReplies} 
+                        onChange={(e) => setIncludeReplies(e.target.checked)}
+                        className="w-4 h-4 rounded border-neutral-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-neutral-900 bg-neutral-800"
+                    />
+                    <span>with Replies recommendations</span>
+                </label>
                 <button
                     onClick={handleTranslate}
                     disabled={isTranslating || !sourceText.trim()}

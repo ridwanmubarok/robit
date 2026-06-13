@@ -361,25 +361,26 @@ function App() {
       }
 
       // 2. scrape tool
-      const scrapeRegex = /<scrape\s+url="([^"]+)"\s*\/>/g;
+      const scrapeRegex = /<scrape\s+url="([^"]+)"\s+query="([^"]+)"\s*\/>/g;
       if (chatMode === 'all' || chatMode === 'research') {
           while ((match = scrapeRegex.exec(fullAIResponse)) !== null) {
               const url = match[1];
+              const query = match[2];
               setToolStatus(`🌐 Scraping: ${url}...`);
               try {
                   const res = await fetch('/api/scrape', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ url })
+                      body: JSON.stringify({ url, query })
                   });
                   const data = await res.json();
                   if (data.success) {
-                      toolResults.push(`TOOL RESULT [scrape url="${url}"]:\n${data.content}`);
+                      toolResults.push(`TOOL RESULT [scrape url="${url}" query="${query}"]:\n${data.content}`);
                   } else {
-                      toolResults.push(`TOOL RESULT [scrape url="${url}"]: Error - ${data.error}`);
+                      toolResults.push(`TOOL RESULT [scrape url="${url}" query="${query}"]: Error - ${data.error}`);
                   }
               } catch (e) {
-                  toolResults.push(`TOOL RESULT [scrape url="${url}"]: Error - ${e.message}`);
+                  toolResults.push(`TOOL RESULT [scrape url="${url}" query="${query}"]: Error - ${e.message}`);
               }
           }
       }

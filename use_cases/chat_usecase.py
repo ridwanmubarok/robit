@@ -22,7 +22,7 @@ async def prepare_chat_payload(body: dict):
             "- IMPORTANT: Do NOT use the <ask_docs> tag. The local document database is disabled in this mode.\n\n"
             "TOOL CALLING (Use the following XML tags — MUST BE EXACT, self-closing):\n"
             "1. <search query=\"your search topic\"/> — Perform an internet search (DuckDuckGo). Use for current information, news, technical docs, or finding URLs.\n"
-            "2. <scrape url=\"https://full-url-here\"/> — Scrape and read the content of a specific webpage.\n\n"
+            "2. <scrape url=\"https://full-url-here\" query=\"what you are looking for\"/> — Scrape a webpage and extract content relevant to your query.\n\n"
             "TOOL WORKFLOW:\n"
             "- First use <search> to find relevant URLs, then use <scrape> on the most relevant URL to get detailed content.\n"
             "- Upon receiving a 'TOOL RESULT', analyze the data thoroughly and respond to the user.\n"
@@ -50,6 +50,65 @@ async def prepare_chat_payload(body: dict):
         messages.insert(0, {"role": "system", "content": system_prompt})
     else:
         messages[0]["content"] = system_prompt
+
+    # --- CHAT HISTORY RAG ---
+    MAX_HISTORY = 10
+    RETAIN_LATEST = 4
+    if len(messages) > MAX_HISTORY + 1:  # +1 for system prompt
+        try:
+            import numpy as np
+            from services import rag_service
+            
+            # Extract latest query
+            latest_query = ""
+            for m in reversed(messages):
+                if m.get("role") == "user":
+                    latest_query = m.get("content", "")
+                    break
+                    
+            if latest_query:
+                sys_msg = messages[0]
+                latest_msgs = messages[-RETAIN_LATEST:]
+                old_msgs = messages[1:-RETAIN_LATEST]
+                
+                texts = []
+                for m in old_msgs:
+                    content = m.get("content", "").strip()
+                    if content:
+                        texts.append(f"[{m.get('role', 'unknown').upper()}] {content}")
+                        
+                if texts:
+                    rag_engine = rag_service.get_rag_engine()
+                    query_vec = rag_engine.model.encode([latest_query], convert_to_numpy=True)
+                    doc_vecs = rag_engine.model.encode(texts, convert_to_numpy=True)
+                    
+                    # Cosine similarity
+                    norm_q = np.linalg.norm(query_vec, axis=1)
+                    norm_d = np.linalg.norm(doc_vecs, axis=1)
+                    norm_q[norm_q == 0] = 1e-10
+                    norm_d[norm_d == 0] = 1e-10
+                    
+                    sim = np.dot(query_vec, doc_vecs.T) / (norm_q[:, None] * norm_d)
+                    sim = sim[0]
+                    
+                    top_k = min(3, len(texts))
+                    top_indices = np.argsort(sim)[-top_k:][::-1]
+                    
+                    retrieved_memory = []
+                    for idx in top_indices:
+                        if sim[idx] > 0.15: # Context threshold
+                            retrieved_memory.append(texts[idx])
+                            
+                    if retrieved_memory:
+                        memory_context = "\n\n[MEMORI PERCAKAPAN LAMA YANG RELEVAN]\n"
+                        memory_context += "\n---\n".join(retrieved_memory)
+                        sys_msg["content"] += memory_context
+                        
+                # Reconstruct messages to avoid context explosion
+                messages = [sys_msg] + latest_msgs
+        except Exception as e:
+            print(f"[CHAT RAG] Error embedding history: {e}")
+            messages = [messages[0]] + messages[-RETAIN_LATEST:]
 
     temperature = float(db_service.get_setting("temperature", "0.3"))
     top_p = float(db_service.get_setting("top_p", "0.9"))

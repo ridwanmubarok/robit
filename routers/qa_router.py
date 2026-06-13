@@ -185,20 +185,23 @@ with sync_playwright() as p:
     
     if req.messages:
         for m in req.messages:
-            if m["role"] != "assistant":
-                messages.append({"role": m["role"], "content": m["content"]})
+            messages.append({"role": m["role"], "content": m["content"]})
     else:
         messages.append({"role": "user", "content": req.prompt})
     
     payload = {
         "messages": messages,
-        "temperature": 0.2,
-        "max_tokens": 2048, # Reduced from 4096 to fail faster if looping
+        "temperature": 0.1,
+        "max_tokens": 2048,
         "stream": True,
-        "frequency_penalty": 0.5,
-        "presence_penalty": 0.2,
-        "repeat_penalty": 1.15,
-        "stop": ["<|eot_id|>", "<|im_end|>", "</s>", "<|end_of_text|>", "User:", "\nuser", "\nYou", "\n<|user|>"]
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0,
+        "repeat_penalty": 1.05,
+        "stop": [
+            "<|im_end|>", "<|eot_id|>", "</s>", "<|endoftext|>", 
+            "<|end_of_text|>", "User:", "\nuser", "\nYou", "\n<|user|>", 
+            "user:", "assistant:", "System:", "system:", "Assistant:"
+        ]
     }
     
     generated_code = ""

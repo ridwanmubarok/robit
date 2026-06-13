@@ -287,12 +287,13 @@ async def translate_endpoint(request: Request):
     text = body.get("text", "").strip()
     source_lang = body.get("source_lang", "Auto").strip()
     target_lang = body.get("target_lang", "Indonesian").strip()
+    include_replies = body.get("include_replies", True)
     
     if not text:
         return {"success": False, "error": "Teks sumber tidak boleh kosong."}
         
     try:
-        result = await llm_service.translate_text(text, source_lang, target_lang)
+        result = await llm_service.translate_text(text, source_lang, target_lang, include_replies)
         return {
             "success": True,
             "translation": result.get("translation", ""),
@@ -1002,7 +1003,7 @@ async def get_dashboard_stats():
     
     # 1. Total indexed files
     total_indexed = 0
-    for status_file in ["robit_codebase_status.json", "robit_kb_status.json"]:
+    for status_file in ["robit_codebase_status.json", "robit_kb_status.json", "robit_docs_status.json"]:
         p = os.path.join(base_dir, status_file)
         if os.path.exists(p):
             try:
@@ -1029,6 +1030,7 @@ async def get_dashboard_stats():
         "robit.db", 
         "robit_codebase.tvim", "robit_codebase_map.json", "robit_codebase_status.json",
         "robit_kb.tvim", "robit_kb_map.json", "robit_kb_status.json",
+        "robit_docs.tvim", "robit_docs_map.json", "robit_docs_status.json",
         "history.json", "settings.json", "projects.json"
     ]
     for db_file in db_files:
@@ -1100,10 +1102,9 @@ async def get_dashboard_stats():
         "cpu_cores": cpu_cores,
         "cpu_threads": cpu_threads,
         "disk_total_gb": disk_total_gb,
-        "disk_used_gb": disk_used_gb,
-        "disk_percent": disk_percent,
         "uptime": uptime_str,
         "os_info": os_info,
         "python_ver": python_ver,
-        "total_sessions": total_sessions
+        "total_sessions": total_sessions,
+        "base_dir_debug": base_dir
     }

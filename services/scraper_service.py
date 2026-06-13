@@ -24,7 +24,7 @@ REMOVE_TAGS = ['script', 'style', 'nav', 'header', 'footer', 'aside',
 MAX_CONTENT_LENGTH = 12000  # tokens-safe limit for LLM context
 
 
-async def scrape_url(url: str) -> dict:
+async def scrape_url(url: str, query: str = "") -> dict:
     """
     Fetches a URL and extracts clean, readable text.
     Returns a dict with 'success', 'content', 'title', 'url', and optionally 'error'.
@@ -84,8 +84,54 @@ async def scrape_url(url: str) -> dict:
             unique_lines.append(normalized)
 
     content = "\n".join(unique_lines)
+    
+    # --- RAG FOR WEB SCRAPER ---
+    # If a query is provided and the text is very long, use numpy vectors to chunk & retrieve
+    if query and len(content) > 3000:
+        try:
+            import numpy as np
+            from services import rag_service
+            
+            # Group lines into larger chunks (~500 chars)
+            chunks = []
+            current_chunk = ""
+            for line in unique_lines:
+                current_chunk += line + " "
+                if len(current_chunk) > 500:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = ""
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+                
+            if len(chunks) > 0:
+                rag_engine = rag_service.get_rag_engine()
+                query_vec = rag_engine.model.encode([query], convert_to_numpy=True)
+                doc_vecs = rag_engine.model.encode(chunks, convert_to_numpy=True)
+                
+                norm_q = np.linalg.norm(query_vec, axis=1)
+                norm_d = np.linalg.norm(doc_vecs, axis=1)
+                norm_q[norm_q == 0] = 1e-10
+                norm_d[norm_d == 0] = 1e-10
+                
+                sim = np.dot(query_vec, doc_vecs.T) / (norm_q[:, None] * norm_d)
+                sim = sim[0]
+                
+                # Retrieve top 8 most relevant chunks
+                top_k = min(8, len(chunks))
+                # Sort indices by similarity descending
+                top_indices = np.argsort(sim)[-top_k:][::-1]
+                
+                # Sort the selected chunks by their original appearance order in the document
+                top_indices = sorted(top_indices)
+                
+                retrieved_chunks = [chunks[idx] for idx in top_indices]
+                content = f"[Ekstraksi Spesifik Web RAG (Top {top_k} relevan untuk: \"{query}\")]\n\n"
+                content += "\n\n[...]\n\n".join(retrieved_chunks)
+        except Exception as e:
+            print(f"[SCRAPER RAG] Error embedding webpage: {e}")
+            # Fallback to standard truncation below if error
 
-    # Truncate if too long
+    # Truncate if still too long (fallback or no query)
     if len(content) > MAX_CONTENT_LENGTH:
         content = content[:MAX_CONTENT_LENGTH] + "\n\n[...Konten dipotong karena terlalu panjang]"
 

@@ -11,9 +11,10 @@ router = APIRouter()
 async def scrape_endpoint(request: Request):
     body = await request.json()
     url = body.get("url", "").strip()
+    query = body.get("query", "").strip()
 
     if not url:
         return {"success": False, "error": "No URL provided."}
 
-    result = await scrape_url(url)
+    result = await scrape_url(url, query)
     return result

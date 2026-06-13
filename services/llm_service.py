@@ -234,25 +234,39 @@ async def stream_llm_response(payload):
                 if chunk:
                     yield chunk + "\n"
 
-async def translate_text(text: str, source_lang: str, target_lang: str):
-    prompt = (
-        f"You are an expert multilingual translation assistant.\n"
-        f"Translate the following text from '{source_lang}' to '{target_lang}'.\n"
-        f"After translating, analyze the original text/context and suggest exactly 3 short, context-appropriate, helpful replies or follow-ups in '{target_lang}' (or the language of the original text if more appropriate for replying).\n\n"
-        f"Format your response EXACTLY as a single valid JSON object containing the translation and the list of replies. "
-        f"Do NOT include any markdown code blocks, backticks, or other text outside the JSON object.\n\n"
-        f"JSON Schema:\n"
-        f"{{\n"
-        f"  \"translation\": \"translated text here\",\n"
-        f"  \"replies\": [\n"
-        f"    \"suggested reply 1\",\n"
-        f"    \"suggested reply 2\",\n"
-        f"    \"suggested reply 3\"\n"
-        f"  ]\n"
-        f"}}\n\n"
-        f"Text to translate:\n"
-        f"{text}"
-    )
+async def translate_text(text: str, source_lang: str, target_lang: str, include_replies: bool = True):
+    if include_replies:
+        prompt = (
+            f"You are an expert multilingual translation assistant.\n"
+            f"Translate the following text from '{source_lang}' to '{target_lang}'.\n"
+            f"After translating, analyze the original text/context and suggest exactly 3 short, context-appropriate, helpful replies or follow-ups in '{target_lang}' (or the language of the original text if more appropriate for replying).\n\n"
+            f"Format your response EXACTLY as a single valid JSON object containing the translation and the list of replies. "
+            f"Do NOT include any markdown code blocks, backticks, or other text outside the JSON object.\n\n"
+            f"JSON Schema:\n"
+            f"{{\n"
+            f"  \"translation\": \"translated text here\",\n"
+            f"  \"replies\": [\n"
+            f"    \"suggested reply 1\",\n"
+            f"    \"suggested reply 2\",\n"
+            f"    \"suggested reply 3\"\n"
+            f"  ]\n"
+            f"}}\n\n"
+            f"Text to translate:\n"
+            f"{text}"
+        )
+    else:
+        prompt = (
+            f"You are an expert multilingual translation assistant.\n"
+            f"Translate the following text from '{source_lang}' to '{target_lang}'.\n\n"
+            f"Format your response EXACTLY as a single valid JSON object containing ONLY the translation. "
+            f"Do NOT include any markdown code blocks, backticks, or other text outside the JSON object.\n\n"
+            f"JSON Schema:\n"
+            f"{{\n"
+            f"  \"translation\": \"translated text here\"\n"
+            f"}}\n\n"
+            f"Text to translate:\n"
+            f"{text}"
+        )
     
     payload = {
         "messages": [
