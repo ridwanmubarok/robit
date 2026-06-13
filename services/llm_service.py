@@ -157,6 +157,7 @@ def start_engine():
     if not os.path.exists(current_engine_path):
         err = f"Error: Engine not found at {current_engine_path}"
         state.logs.append(err)
+        state.status = err
         return
 
     cmd = [
@@ -178,16 +179,22 @@ def start_engine():
     env.pop('LD_LIBRARY_PATH', None)
     env.pop('LD_LIBRARY_PATH_ORIG', None)
 
-    state.engine_process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env
-    )
-    
-    threading.Thread(target=engine_logger, daemon=True).start()
-    boost_process_priority(state.engine_process.pid)
-    if not GPU_MODE:
-        set_cpu_affinity(state.engine_process.pid)
-        
-    state.is_warmed_up = False
+    try:
+        state.engine_process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env
+        )
+        state.status = "Initializing..."
+
+        threading.Thread(target=engine_logger, daemon=True).start()
+        boost_process_priority(state.engine_process.pid)
+        if not GPU_MODE:
+            set_cpu_affinity(state.engine_process.pid)
+
+        state.is_warmed_up = False
+    except Exception as e:
+        err = f"Error: Failed to start engine. {str(e)}"
+        state.logs.append(err)
+        state.status = err
 
 def stop_engine():
     if state.engine_process:

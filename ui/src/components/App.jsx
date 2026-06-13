@@ -106,10 +106,9 @@ function App() {
               <div className="w-10 h-10 rounded bg-zinc-100 flex items-center justify-center shadow-lg">
                   <span className="font-mono font-bold text-[#000000] text-xl">r</span>
               </div>
-              <div className="flex items-baseline space-x-2">
-                  <span className="font-bold text-3xl tracking-tight text-zinc-100">robit</span>
-              </div>
+              <span className="font-bold text-2xl tracking-tight text-zinc-100">robit</span>
           </div>
+          
           <div className="flex items-center gap-3">
               <div className="w-5 h-5 border-2 border-neutral-600 border-t-white rounded-full animate-spin"></div>
               <span className="text-neutral-500 font-medium tracking-wide text-sm">Starting workspace...</span>
@@ -452,7 +451,9 @@ function App() {
             {/* Spinning & Pulsing Ring Loader */}
             <div className="relative w-20 h-20 mb-8">
               <div className="absolute inset-0 rounded-full border-4 border-white/20"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-t-cyan-400 border-r-indigo-400 animate-spin"></div>
+              {!(modelsData.status && modelsData.status.includes('Error')) && (
+                <div className="absolute inset-0 rounded-full border-4 border-t-cyan-400 border-r-indigo-400 animate-spin"></div>
+              )}
               <div className="absolute inset-2 rounded-full bg-[#000000] flex items-center justify-center">
                 <svg className="w-8 h-8 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.172V5L8 4z" />
@@ -460,16 +461,38 @@ function App() {
               </div>
             </div>
             
-            <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Memuat Model AI Lokal...</h2>
+            <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Loading Local AI Model...</h2>
             
             <div className="bg-[#0a0a0a]/80 border border-[#262626]/50 px-4 py-2 rounded-xl mb-4 text-xs font-semibold text-white tracking-wide inline-flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-white400 animate-ping"></span>
-              {modelsData.active ? modelsData.active.split(/[/\\]/).pop() : "Model GGUF"}
+              {modelsData.active ? modelsData.active.split(/[/\\]/).pop() : "GGUF Model"}
             </div>
             
             <p className="text-sm text-neutral-400 mb-6 font-medium">
-              Status: <span className="text-indigo-300">{modelsData.status || "Inisialisasi engine..."}</span>
+              Status: <span className="text-indigo-300">{modelsData.status || "Initializing engine..."}</span>
             </p>
+            {modelsData.status && modelsData.status.includes('Error') && (
+              <div className="mt-2 mb-6 flex flex-col items-center gap-3">
+                <div className="text-rose-400 bg-rose-500/10 px-4 py-2 rounded text-sm font-medium border border-rose-500/20 text-center">
+                  ⚠️ Failed to load AI Engine. <br/>
+                  The driver might be incompatible with your system.
+                </div>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => window.location.href = '/setup'}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors"
+                  >
+                    Change Driver / Engine
+                  </button>
+                  <button 
+                    onClick={() => fetch('/api/setup/factory-reset', {method: 'POST'}).then(() => window.location.reload())}
+                    className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg transition-colors"
+                  >
+                    Factory Reset
+                  </button>
+                </div>
+              </div>
+            )}
             
             {/* Live Terminal Console Logs */}
             <div className="w-full bg-[#000000] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl text-left flex flex-col h-56">
@@ -486,13 +509,13 @@ function App() {
                     <div key={idx} className="break-all whitespace-pre-wrap select-text">{log}</div>
                   ))
                 ) : (
-                  <div className="text-neutral-600 italic">Menunggu log sistem pertama...</div>
+                  <div className="text-neutral-600 italic">Waiting for the first system log...</div>
                 )}
               </div>
             </div>
             
             <p className="text-[10px] text-neutral-500 mt-4 max-w-sm">
-              Model GGUF sedang dimuat ke memori lokal (RAM/VRAM) Anda. Proses ini membutuhkan waktu 10-30 detik tergantung ukuran model.
+              The GGUF model is being loaded into your local memory (RAM/VRAM). This process takes 10-30 seconds depending on the model size.
             </p>
           </div>
         </div>

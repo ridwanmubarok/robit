@@ -224,6 +224,13 @@ with sync_playwright() as p:
 async def qa_websocket(websocket: WebSocket):
     await websocket.accept()
     
+    import os
+    if os.getenv("ENV", "development").lower() == "production":
+        await websocket.send_json({"type": "log", "message": "[Error] QA Automation is disabled in production."})
+        await websocket.send_json({"type": "done"})
+        await websocket.close()
+        return
+
     try:
         data = await websocket.receive_text()
         req = json.loads(data)

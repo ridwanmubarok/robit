@@ -93,6 +93,12 @@ export default function QAArea() {
 
     const handleRun = () => {
         if (!code || isRunning) return;
+
+        if (import.meta.env.PROD) {
+            setLogs(prev => [...prev, "[System] QA Automation execution is disabled in production/release builds for security."]);
+            setIsRunning(false);
+            return;
+        }
         
         setIsRunning(true);
         saveScenarioData({ status: "running" });

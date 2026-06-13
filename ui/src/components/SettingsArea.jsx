@@ -346,13 +346,26 @@ export default function SettingsArea() {
                                 </span>
                             )}
                         </div>
-                        <button
-                            type="submit"
-                            disabled={saveSettingsMutation.isPending}
-                            className="bg-white text-black hover:bg-neutral-200 px-8 py-3 rounded-xl font-bold text-sm shadow-lg shadow-white/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {saveSettingsMutation.isPending ? 'Applying Changes...' : 'Save Configuration'}
-                        </button>
+                        <div className="flex gap-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if(confirm('Are you sure you want to factory reset? This will wipe all configurations and downloaded engines.')) {
+                                        fetch('/api/setup/factory-reset', {method: 'POST'}).then(() => window.location.href = '/setup');
+                                    }
+                                }}
+                                className="bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2"
+                            >
+                                Factory Reset
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={saveSettingsMutation.isPending}
+                                className="bg-white text-black hover:bg-neutral-200 px-8 py-3 rounded-xl font-bold text-sm shadow-lg shadow-white/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {saveSettingsMutation.isPending ? 'Applying Changes...' : 'Save Configuration'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

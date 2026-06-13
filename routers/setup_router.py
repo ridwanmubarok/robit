@@ -151,19 +151,19 @@ def get_engine_dest_dir(engine_type: str):
 
 def download_engine_thread(engine_type: str):
     global download_state
-    url = get_engine_download_url(engine_type)
-    dest_dir = os.path.join(os.getcwd(), get_engine_dest_dir(engine_type))
-    os.makedirs(dest_dir, exist_ok=True)
-    
-    is_tar = url.endswith(".tar.gz")
-    archive_name = "llama_cpp.tar.gz" if is_tar else "llama_cpp.zip"
-    archive_path = os.path.join(dest_dir, archive_name)
-    
     download_state["engine"]["status"] = "downloading"
     download_state["engine"]["progress"] = 0.0
     download_state["engine"]["error"] = ""
-    
+
     try:
+        url = get_engine_download_url(engine_type)
+        dest_dir = os.path.join(APP_BASE_DIR, get_engine_dest_dir(engine_type))
+        os.makedirs(dest_dir, exist_ok=True)
+        
+        is_tar = url.endswith(".tar.gz")
+        archive_name = "llama_cpp.tar.gz" if is_tar else "llama_cpp.zip"
+        archive_path = os.path.join(dest_dir, archive_name)
+        
         def reporthook(count, block_size, total_size):
             if total_size > 0:
                 downloaded = count * block_size
@@ -313,3 +313,39 @@ async def get_setup_status():
         if os.path.exists(full_path):
             is_setup = True
     return {"is_setup": is_setup}
+
+@router.post("/api/setup/factory-reset")
+async def factory_reset():
+    from services import llm_service, db_service
+    llm_service.stop_engine()
+    
+    # 1. Clear config.json
+    robit_dir = os.path.join(str(Path.home()), ".robit")
+    config_path = os.path.join(robit_dir, "config.json")
+    if os.path.exists(config_path):
+        try:
+            os.remove(config_path)
+        except Exception:
+            pass
+            
+    # 2. Clear active_model in DB
+    try:
+        db_service.delete_setting("active_model")
+    except Exception:
+        pass
+        
+    # 3. Clear engine binaries
+    for d in ["bin-vulkan", "bin-cuda", "bin-metal", "bin"]:
+        p = os.path.join(robit_dir, d)
+        if os.path.exists(p):
+            try:
+                shutil.rmtree(p)
+            except Exception:
+                pass
+                
+    # 4. Reset states
+    global download_state
+    download_state["engine"] = {"status": "idle", "progress": 0.0, "total_mb": 0.0, "downloaded_mb": 0.0, "error": ""}
+    download_state["model"] = {"status": "idle", "progress": 0.0, "total_mb": 0.0, "downloaded_mb": 0.0, "error": ""}
+    
+    return {"success": True, "message": "Factory reset complete"}

@@ -78,10 +78,6 @@ export default function SetupWizard({ onComplete }) {
               text: data.model.status === 'downloading' ? `Copying... ${data.model.downloaded_mb || 0} / ${data.model.total_mb || 0} MB` : '',
               error: data.model.error || ''
             });
-            // Auto-redirect when done
-            if (data.model.status === 'done') {
-              setTimeout(() => { window.location.href = '/'; }, 1500);
-            }
           }
         })
         .catch(() => {});
@@ -203,16 +199,18 @@ export default function SetupWizard({ onComplete }) {
             <h2 className="text-xl font-semibold text-white border-b border-neutral-800 pb-2">Download AI Engine</h2>
             <p className="text-sm text-neutral-400">ROBIT will download the optimized Llama.cpp engine for your system.</p>
             
-            <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between">
+            <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between flex-wrap gap-4">
               <div>
                 <p className="font-bold text-white">Llama.cpp ({selectedEngine})</p>
                 <p className="text-xs text-neutral-500">~30 MB</p>
               </div>
+              
               {engineState.status === 'idle' && (
                 <button onClick={downloadEngine} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-semibold transition-colors">Download</button>
               )}
+              
               {(engineState.status === 'downloading' || engineState.status === 'extracting') && (
-                <div className="w-1/2">
+                <div className="flex-1 min-w-[200px]">
                   <div className="flex justify-between text-xs text-neutral-400 mb-2">
                     <span>{engineState.status === 'extracting' ? 'Extracting...' : 'Downloading...'}</span>
                     <span>{engineState.text}</span>
@@ -222,16 +220,23 @@ export default function SetupWizard({ onComplete }) {
                   </div>
                 </div>
               )}
+              
               {engineState.status === 'done' && (
                 <span className="text-green-500 font-bold flex items-center gap-1">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>
                   Ready
                 </span>
               )}
+              
               {engineState.status === 'error' && (
-                <div className="text-center p-3 text-red-400 font-bold bg-red-500/10 rounded-xl border border-red-500/20 flex flex-col items-center">
-                  <span>Download Failed</span>
-                  {engineState.error && <span className="text-xs mt-1 font-normal opacity-80">{engineState.error}</span>}
+                <div className="flex items-center gap-3 w-full mt-2">
+                  <div className="flex-1 text-center p-2 text-red-400 font-bold bg-red-500/10 rounded border border-red-500/20 flex flex-col">
+                    <span className="text-sm">Download Failed</span>
+                    {engineState.error && <span className="text-[10px] font-normal opacity-80 break-all">{engineState.error}</span>}
+                  </div>
+                  <button onClick={() => fetch('/api/setup/factory-reset', {method: 'POST'}).then(() => window.location.reload())} className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded text-xs font-bold whitespace-nowrap">
+                    Cancel / Retry
+                  </button>
                 </div>
               )}
             </div>
@@ -290,6 +295,17 @@ export default function SetupWizard({ onComplete }) {
                       style={{width: `${modelState.progress || 0}%`}}
                     ></div>
                   </div>
+                </div>
+              )}
+              {modelState.status === 'error' && (
+                <div className="flex items-center gap-3 w-full p-2">
+                  <div className="flex-1 text-center p-2 text-red-400 font-bold bg-red-500/10 rounded border border-red-500/20 flex flex-col">
+                    <span className="text-sm">Import Failed</span>
+                    {modelState.error && <span className="text-[10px] font-normal opacity-80 break-all">{modelState.error}</span>}
+                  </div>
+                  <button onClick={() => fetch('/api/setup/factory-reset', {method: 'POST'}).then(() => window.location.reload())} className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded text-xs font-bold whitespace-nowrap">
+                    Cancel / Retry
+                  </button>
                 </div>
               )}
               {modelState.status === 'done' && (

@@ -336,3 +336,10 @@ def delete_qa_scenario(scenario_id):
     c.execute('DELETE FROM qa_scenarios WHERE id = ?', (scenario_id,))
     conn.commit()
     conn.close()
+
+def delete_setting(key):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM settings WHERE key = ?", (key,))
+    conn.commit()
+    conn.close()
